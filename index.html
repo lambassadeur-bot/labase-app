@@ -2880,6 +2880,9 @@ async function startCameraScan(){
   if(camBtn) camBtn.style.display='none';
   if(stopBtn) stopBtn.style.display='block';
 
+  // Attendre le repaint avant d'initialiser (nécessaire sur mobile)
+  await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+
   try{
     _qrScanner=new Html5Qrcode("qrReader",{verbose:false});
 
