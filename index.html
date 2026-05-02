@@ -1121,6 +1121,21 @@ html[data-mobile="1"] body .app .main-wrap{
 </style>
 </head>
 <body>
+<!-- Overlay beta password -->
+<div id="betaGate" style="display:none;position:fixed;inset:0;z-index:9999;background:#0D0020;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;">
+  <div style="font-size:28px;font-weight:800;background:linear-gradient(90deg,#00B2A9,#F15BBE);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">DIG</div>
+  <div style="font-size:13px;color:#aaa;letter-spacing:1px;">ACCÈS BETA</div>
+  <div style="display:flex;flex-direction:column;gap:10px;width:260px;">
+    <input id="betaPassInput" type="password" placeholder="Mot de passe"
+      style="padding:12px 16px;border-radius:10px;border:1px solid #333;background:#1a0030;color:#fff;font-size:14px;text-align:center;letter-spacing:2px;outline:none;"
+      onkeydown="if(event.key==='Enter')checkBetaPass()" />
+    <button onclick="checkBetaPass()"
+      style="padding:12px;border-radius:10px;border:none;background:linear-gradient(90deg,#00B2A9,#F15BBE);color:#fff;font-size:14px;font-weight:600;cursor:pointer;">
+      Entrer
+    </button>
+    <div id="betaPassError" style="display:none;font-size:11px;color:#F15BBE;text-align:center;">Mot de passe incorrect.</div>
+  </div>
+</div>
 
 <div class="overlay" id="overlay" onclick="closeAll()"></div>
 
@@ -1639,6 +1654,11 @@ html[data-mobile="1"] body .app .main-wrap{
 </div>
 
 <script>
+// ── Config beta ───────────────────────────────────────────────
+const BETA_PASSWORD = 'dig2026';   // ← changer ici pour les testeurs
+const OMDB_KEY = 'b4c79a5a';       // ← clé OMDB (visible côté client, à remplacer par un proxy si nécessaire)
+const GOOGLE_BOOKS_KEY = '';       // ← optionnel
+
 const ITEMS=[];
 
 // ── Catalogue global (base de données simulée) ──
@@ -2890,12 +2910,19 @@ async function startCameraScan(){
   if(sub) sub.style.display='none';
   if(corners) corners.style.display='none';
   if(scanLine) scanLine.style.display='none';
-  if(reader) reader.style.display='block';
   if(camBtn) camBtn.style.display='none';
   if(stopBtn) stopBtn.style.display='block';
 
-  // Attendre le repaint avant d'initialiser (nécessaire sur mobile)
-  await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+  // Recréer qrReader proprement (Html5Qrcode échoue sur un élément réutilisé)
+  const scanZone=document.getElementById('scanZone');
+  const old=document.getElementById('qrReader');
+  if(old) old.remove();
+  const freshReader=document.createElement('div');
+  freshReader.id='qrReader';
+  freshReader.style.cssText='width:100%;height:100%;position:absolute;inset:0;border-radius:10px;overflow:hidden;';
+  scanZone.insertBefore(freshReader, scanZone.firstChild);
+
+  await new Promise(r => setTimeout(r, 80));
 
   try{
     _qrScanner=new Html5Qrcode("qrReader",{verbose:false});
@@ -2962,17 +2989,20 @@ async function lookupISBN(){
   try{
     let result=null;
     const isBarcode=/^\d{8,13}$/.test(q);
-    if(isBarcode){
-      const r=await fetch(`https://openlibrary.org/api/books?bibkeys=ISBN:${q}&format=json&jscmd=data`);
-      const d=await r.json();
-      const b=d[`ISBN:${q}`];
-      if(b) result={title:b.title,author:(b.authors||[]).map(a=>a.name).join(', '),year:b.publish_date?b.publish_date.slice(-4):'',type:'book',emoji:'📖',coverUrl:b.cover?.medium||null};
-    }
-    if(!result){
-      const r=await fetch(`https://openlibrary.org/search.json?q=${encodeURIComponent(q)}&limit=1&fields=title,author_name,first_publish_year,cover_i`);
-      const d=await r.json();
-      const doc=(d.docs||[])[0];
-      if(doc) result={title:doc.title,author:(doc.author_name||[]).join(', '),year:doc.first_publish_year?String(doc.first_publish_year):'',type:'book',emoji:'📖',coverUrl:doc.cover_i?`https://covers.openlibrary.org/b/id/${doc.cover_i}-M.jpg`:null};
+    const gbKey=GOOGLE_BOOKS_KEY?`&key=${GOOGLE_BOOKS_KEY}`:'';
+    // Google Books — fiable pour ISBN et titres
+    const gbQuery=isBarcode?`isbn:${q}`:encodeURIComponent(q);
+    const gbR=await fetch(`https://www.googleapis.com/books/v1/volumes?q=${gbQuery}&maxResults=1${gbKey}`);
+    const gbD=await gbR.json();
+    const vol=(gbD.items||[])[0]?.volumeInfo;
+    if(vol){
+      result={
+        title:vol.title,
+        author:(vol.authors||[]).join(', '),
+        year:vol.publishedDate?vol.publishedDate.slice(0,4):'',
+        type:'book',emoji:'📖',
+        coverUrl:vol.imageLinks?.thumbnail?.replace('http:','https:')||null
+      };
     }
     if(!result){inner.innerHTML=`<div style="font-size:11px;color:var(--text3);padding:10px 0;">Aucun résultat pour "${q}".</div>`;return;}
     inner.innerHTML=`
@@ -3061,7 +3091,7 @@ async function searchManualSuggestions(q){
           results.push({title:name,author:'',year,type:'boardgame',emoji:'♟'});
         });
       } else if(type==='series'||type==='dvd'){
-        const r=await fetch(`https://www.omdbapi.com/?apikey=b4c79a5a&s=${encodeURIComponent(q)}&type=${type==='series'?'series':'movie'}`);
+        const r=await fetch(`https://www.omdbapi.com/?apikey=${OMDB_KEY}&s=${encodeURIComponent(q)}&type=${type==='series'?'series':'movie'}`);
         const d=await r.json();
         (d.Search||[]).slice(0,5).forEach(item=>{
           results.push({title:item.Title,author:'',year:item.Year?.slice(0,4)||'',type,emoji:type==='series'?'📺':'🎬',coverUrl:item.Poster!=='N/A'?item.Poster:null});
@@ -4037,13 +4067,35 @@ function finishOnboarding(){
 }
 
 // Lancer après déclaration de toutes les fonctions
-document.addEventListener("DOMContentLoaded", ()=>{
+function checkBetaPass(){
+  const inp=document.getElementById('betaPassInput');
+  const err=document.getElementById('betaPassError');
+  if(!inp) return;
+  if(inp.value===BETA_PASSWORD){
+    sessionStorage.setItem('beta_ok','1');
+    document.getElementById('betaGate').style.display='none';
+    initApp();
+  } else {
+    if(err){err.style.display='block';}
+    inp.value='';inp.focus();
+  }
+}
+
+function initApp(){
   applyMobileLayout();
-  window.addEventListener('resize', applyMobileLayout);
   loadFromStorage();
   if(!USER_PROFILE){ showOnboarding(); } else {
     applyProfileToUI();
     startApp();
+  }
+}
+
+document.addEventListener("DOMContentLoaded", ()=>{
+  window.addEventListener('resize', applyMobileLayout);
+  if(BETA_PASSWORD && sessionStorage.getItem('beta_ok')!=='1'){
+    document.getElementById('betaGate').style.display='flex';
+  } else {
+    initApp();
   }
 });
 
