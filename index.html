@@ -82,40 +82,6 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 
 <title>DIG — App</title>
-
-<!-- PWA Configuration -->
-<link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#00B2A9">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="DIG">
-<link rel="apple-touch-icon" href="icon-192.png">
-<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
-<link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
-<meta name="description" content="Construis ta mémoire culturelle. Mangas, vinyles, jeux, livres — tout ce qui te définit.">
-
-<script>
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('service-worker.js')
-      .then((reg) => console.log('SW enregistré:', reg.scope))
-      .catch((err) => console.warn('SW erreur:', err));
-  });
-}
-window.addEventListener('DOMContentLoaded', () => {
-  if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone) {
-    document.documentElement.classList.add('pwa-installed');
-  }
-});
-let _deferredInstall = null;
-window.addEventListener('beforeinstallprompt', (e) => {
-  e.preventDefault();
-  _deferredInstall = e;
-});
-function promptInstall() {
-  if (_deferredInstall) { _deferredInstall.prompt(); _deferredInstall.userChoice.then(() => { _deferredInstall = null; }); }
-}
-</script>
 <style>
 :root {
   --bg:#FFFFFF;--bg2:#F5F7F8;--bg3:#EAEEF0;
@@ -3828,12 +3794,28 @@ function renderObStep(){
         <input class="ob-input" id="obEmail" type="email" placeholder="ton@email.com" value="${obData.email}" oninput="obData.email=this.value;obData.emailVerified=false;updateObVerifyButtons()" style="flex:1;" />
         <button id="obEmailVerify" onclick="verifyEmail()" style="padding:0 12px;border-radius:9px;border:.5px solid var(--border);background:var(--bg2);color:var(--text2);font-size:11px;cursor:pointer;white-space:nowrap;">${obData.emailVerified?'✓ Vérifié':'Vérifier'}</button>
       </div>
+      <div id="obEmailCodeZone" style="display:none;margin-top:6px;">
+        <div id="obEmailCodeMsg" style="font-size:12px;color:#00B2A9;font-weight:600;margin-bottom:6px;padding:8px 10px;background:rgba(0,178,169,.1);border-radius:8px;"></div>
+        <div style="display:flex;gap:6px;">
+          <input class="ob-input" id="obEmailCodeInput" type="text" inputmode="numeric" placeholder="Code à 6 chiffres" style="flex:1;letter-spacing:4px;" maxlength="6" onkeydown="if(event.key==='Enter'){event.preventDefault();confirmEmailCode();}" />
+          <button type="button" onclick="confirmEmailCode()" style="padding:0 12px;border-radius:9px;border:.5px solid var(--border);background:var(--bg2);color:var(--text2);font-size:11px;cursor:pointer;white-space:nowrap;">Confirmer</button>
+        </div>
+      </div>
 
       <div class="ob-field-label" style="margin-top:12px;">Numéro de téléphone</div>
       <div style="display:flex;gap:6px;">
         <input class="ob-input" id="obPhone" type="tel" placeholder="+33 6 ..." value="${obData.phone}" oninput="obData.phone=this.value;obData.phoneVerified=false;updateObVerifyButtons()" style="flex:1;" />
         <button id="obPhoneVerify" onclick="verifyPhone()" style="padding:0 12px;border-radius:9px;border:.5px solid var(--border);background:var(--bg2);color:var(--text2);font-size:11px;cursor:pointer;white-space:nowrap;">${obData.phoneVerified?'✓ Vérifié':'Vérifier'}</button>
       </div>
+      <div id="obPhoneCodeZone" style="display:none;margin-top:6px;">
+        <div id="obPhoneCodeMsg" style="font-size:12px;color:#00B2A9;font-weight:600;margin-bottom:6px;padding:8px 10px;background:rgba(0,178,169,.1);border-radius:8px;"></div>
+        <div style="display:flex;gap:6px;">
+          <input class="ob-input" id="obPhoneCodeInput" type="text" inputmode="numeric" placeholder="Code à 6 chiffres" style="flex:1;letter-spacing:4px;" maxlength="6" onkeydown="if(event.key==='Enter'){event.preventDefault();confirmPhoneCode();}" />
+          <button type="button" onclick="confirmPhoneCode()" style="padding:0 12px;border-radius:9px;border:.5px solid var(--border);background:var(--bg2);color:var(--text2);font-size:11px;cursor:pointer;white-space:nowrap;">Confirmer</button>
+        </div>
+      </div>
+
+      <div id="obVerifyError" style="display:none;font-size:11px;color:var(--pink);margin-top:6px;text-align:center;"></div>
 
       <div style="font-size:10px;color:var(--text3);margin-top:8px;line-height:1.5;text-align:center;">
         🔒 Vérification anti-bot. Tes données restent privées.
@@ -3878,41 +3860,71 @@ function updateObVerifyButtons(){
 
 async function verifyEmail(){
   const email=obData.email.trim();
+  const errEl=document.getElementById('obVerifyError');
   if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){
-    alert('Email invalide.');
+    if(errEl){errEl.textContent='Email invalide.';errEl.style.display='block';}
     return;
   }
-  // Simuler envoi de code (à remplacer par vraie API plus tard)
+  if(errEl) errEl.style.display='none';
   const code=Math.floor(100000+Math.random()*900000).toString();
-  // En production : envoyer le code par email via SendGrid, Resend, etc.
-  // Ici on stocke en local pour test
   window._emailCode=code;
-  const userCode=prompt(`Un code de vérification a été envoyé à ${email}.\n\n(Démo : le code est ${code})\n\nEntre le code reçu :`);
-  if(userCode===code){
+  const zone=document.getElementById('obEmailCodeZone');
+  const msg=document.getElementById('obEmailCodeMsg');
+  if(zone) zone.style.display='block';
+  if(msg) msg.textContent=`Code envoyé à ${email} — (démo : ${code})`;
+  const inp=document.getElementById('obEmailCodeInput');
+  if(inp){inp.value='';inp.focus();}
+}
+
+function confirmEmailCode(){
+  const inp=document.getElementById('obEmailCodeInput');
+  const errEl=document.getElementById('obVerifyError');
+  if(!inp) return;
+  if(inp.value===window._emailCode){
     obData.emailVerified=true;
     updateObVerifyButtons();
-    alert('✓ Email vérifié !');
-  } else if(userCode!==null){
-    alert('Code incorrect. Réessaie.');
+    const zone=document.getElementById('obEmailCodeZone');
+    if(zone) zone.style.display='none';
+    if(errEl) errEl.style.display='none';
+    const msg=document.getElementById('obEmailCodeMsg');
+    if(msg) msg.textContent='';
+  } else {
+    if(errEl){errEl.textContent='Code incorrect. Réessaie.';errEl.style.display='block';}
   }
 }
 
 async function verifyPhone(){
   const phone=obData.phone.trim().replace(/\s+/g,'');
+  const errEl=document.getElementById('obVerifyError');
   if(!/^\+?\d{8,15}$/.test(phone)){
-    alert('Numéro de téléphone invalide.');
+    if(errEl){errEl.textContent='Numéro de téléphone invalide.';errEl.style.display='block';}
     return;
   }
+  if(errEl) errEl.style.display='none';
   const code=Math.floor(100000+Math.random()*900000).toString();
-  // En production : envoyer SMS via Twilio, Vonage, etc.
   window._phoneCode=code;
-  const userCode=prompt(`Un SMS avec un code a été envoyé au ${phone}.\n\n(Démo : le code est ${code})\n\nEntre le code reçu :`);
-  if(userCode===code){
+  const zone=document.getElementById('obPhoneCodeZone');
+  const msg=document.getElementById('obPhoneCodeMsg');
+  if(zone) zone.style.display='block';
+  if(msg) msg.textContent=`SMS envoyé au ${phone} — (démo : ${code})`;
+  const inp=document.getElementById('obPhoneCodeInput');
+  if(inp){inp.value='';inp.focus();}
+}
+
+function confirmPhoneCode(){
+  const inp=document.getElementById('obPhoneCodeInput');
+  const errEl=document.getElementById('obVerifyError');
+  if(!inp) return;
+  if(inp.value===window._phoneCode){
     obData.phoneVerified=true;
     updateObVerifyButtons();
-    alert('✓ Téléphone vérifié !');
-  } else if(userCode!==null){
-    alert('Code incorrect. Réessaie.');
+    const zone=document.getElementById('obPhoneCodeZone');
+    if(zone) zone.style.display='none';
+    if(errEl) errEl.style.display='none';
+    const msg=document.getElementById('obPhoneCodeMsg');
+    if(msg) msg.textContent='';
+  } else {
+    if(errEl){errEl.textContent='Code incorrect. Réessaie.';errEl.style.display='block';}
   }
 }
 function toggleObType(id,el){
@@ -3929,7 +3941,8 @@ function obNext(){
     obData.handle=document.getElementById('obHandle').value.trim()||name.toLowerCase().replace(/\s+/g,'_');
     // Exiger au moins une vérification (email OU phone)
     if(!obData.emailVerified&&!obData.phoneVerified){
-      alert('Vérifie au moins un email ou un numéro de téléphone pour continuer.\n(Anti-bot, on a besoin d\'un point de contact unique.)');
+      const errEl=document.getElementById('obVerifyError');
+      if(errEl){errEl.textContent='Vérifie au moins un email ou un numéro de téléphone pour continuer.';errEl.style.display='block';}
       return;
     }
   }
