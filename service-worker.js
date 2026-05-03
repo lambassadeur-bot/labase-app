@@ -1,5 +1,5 @@
 // DIG PWA Service Worker — cache offline + stratégies réseau
-const CACHE_VERSION = 'dig-v1';
+const CACHE_VERSION = 'dig-v2';
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 
@@ -68,7 +68,13 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Tout le reste (HTML, CSS, JS app) — Cache First avec MAJ en arrière-plan
+  // HTML (index.html, racine) — Network First pour avoir les MAJ immédiates
+  if (request.mode === 'navigate' || url.pathname.endsWith('.html') || url.pathname === '/' || url.pathname.endsWith('/')) {
+    event.respondWith(networkFirst(request));
+    return;
+  }
+
+  // Tout le reste (CSS, JS app, images) — Cache First avec MAJ en arrière-plan
   event.respondWith(staleWhileRevalidate(request));
 });
 
