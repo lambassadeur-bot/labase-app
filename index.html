@@ -2903,6 +2903,7 @@ function guessType(subjects=[]){
 
 // ── Scan caméra (html5-qrcode) ────────────────────────────────────────
 let _qrScanner=null;
+let _scanLastCode=null, _scanCount=0;
 
 async function startCameraScan(){
   const corners=document.getElementById('scanCorners');
@@ -2970,26 +2971,31 @@ async function startCameraScan(){
       },
     };
 
+    _scanLastCode=null; _scanCount=0;
     await _qrScanner.start(
       { facingMode: "environment" },
       config,
       (decodedText, decodedResult) => {
-        // Code détecté — garde anti-double déclenchement
         if(scanned) return;
         try{
           const cleanCode = decodedText.replace(/[^0-9X]/gi, '');
-          if(cleanCode.length >= 8){
-            scanned=true;
-            if(navigator.vibrate) navigator.vibrate(100);
-            stopCameraScan();
-            // Lance la recherche directement avec le code scanné (pas de copie dans la barre)
-            lookupISBN(cleanCode);
+          if(cleanCode.length < 8){ _scanLastCode=null; _scanCount=0; return; }
+
+          // Confirmation : exige 2 lectures identiques d'affilée (évite les mauvais codes sur image floue)
+          if(cleanCode===_scanLastCode){
+            _scanCount++;
           } else {
-            // Code trop court — feedback debug
-            const inner=document.getElementById('scanResultInner');
-            const resultEl=document.getElementById('scanResult');
-            if(resultEl&&inner){resultEl.style.display='block';inner.innerHTML=`<div style="font-size:11px;color:var(--pink);padding:8px;">Code lu : "${decodedText}" (trop court)</div>`;}
+            _scanLastCode=cleanCode;
+            _scanCount=1;
+            if(navigator.vibrate) navigator.vibrate(30); // petit retour : un code est vu
+            return;
           }
+          if(_scanCount < 2) return;
+
+          scanned=true;
+          if(navigator.vibrate) navigator.vibrate([60,40,60]); // validation
+          stopCameraScan();
+          lookupISBN(cleanCode);
         } catch(err){
           alert('Erreur callback scan: '+err.message);
         }
@@ -2998,6 +3004,18 @@ async function startCameraScan(){
         // Erreurs de décodage normales — pas afficher
       }
     );
+
+    // Tente d'activer l'autofocus continu après le démarrage (plus fiable que via les contraintes initiales)
+    try{
+      const video=document.querySelector('#qrReader video');
+      const track=video&&video.srcObject&&video.srcObject.getVideoTracks?video.srcObject.getVideoTracks()[0]:null;
+      if(track&&track.getCapabilities){
+        const caps=track.getCapabilities();
+        const adv=[];
+        if(caps.focusMode&&caps.focusMode.includes('continuous')) adv.push({focusMode:'continuous'});
+        if(adv.length) await track.applyConstraints({advanced:adv});
+      }
+    }catch(e){ console.log('autofocus non supporté:',e.message); }
   }catch(e){
     console.error('Scan error:',e);
     let msg='Impossible d\'accéder à la caméra.\n\n';
