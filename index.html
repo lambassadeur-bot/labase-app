@@ -2942,15 +2942,21 @@ async function startCameraScan(){
   await new Promise(r => setTimeout(r, 80));
 
   try{
-    _qrScanner=new Html5Qrcode("qrReader",{verbose:false});
+    // Formats de codes-barres ciblés (livres, vinyles, jeux, DVDs)
+    let formats;
+    try{
+      const F=Html5QrcodeSupportedFormats;
+      formats=[F.EAN_13,F.EAN_8,F.UPC_A,F.UPC_E,F.UPC_EAN_EXTENSION,F.CODE_128,F.CODE_39,F.QR_CODE];
+    }catch(e){formats=undefined;}
 
-    // Config pour bonne détection EAN-13 (livres, jeux, DVDs, CDs)
+    _qrScanner=new Html5Qrcode("qrReader",{verbose:false,formatsToSupport:formats});
+
+    // Config : encadré quasi plein cadre pour capturer le code-barres facilement
     const config={
-      fps:15,
+      fps:10,
       qrbox:function(viewfinderWidth, viewfinderHeight){
-        // Box large pour capturer facilement le code-barres
-        const w=Math.floor(viewfinderWidth*0.92);
-        const h=Math.floor(viewfinderHeight*0.55);
+        const w=Math.floor(viewfinderWidth*0.96);
+        const h=Math.floor(viewfinderHeight*0.72);
         return { width:w, height:h };
       },
       aspectRatio:1.0,
@@ -3065,14 +3071,23 @@ async function lookupISBN(directCode){
       }
     }
 
-    // 3. MusicBrainz (CD/vinyle, EAN non-livre)
+    // 3. MusicBrainz (CD/vinyle, EAN non-livre) — essaie plusieurs formes du code-barres
     if(!result&&isBarcode){
-      const mbD=await tryFetch(`https://musicbrainz.org/ws/2/release?query=barcode:${q}&fmt=json&limit=1`,'MusicBrainz');
-      const rel=mbD?.releases?.[0];
-      if(rel){
-        const artist=(rel['artist-credit']||[]).map(a=>a.artist?.name||a.name||'').filter(Boolean).join(', ');
-        const year=rel.date?rel.date.slice(0,4):'';
-        result={title:rel.title,author:artist,year,type:'cd',emoji:'💿',coverUrl:null};
+      const variants=[...new Set([q, q.replace(/^0+/,''), '0'+q, q.padStart(13,'0')])];
+      for(const v of variants){
+        if(result) break;
+        const mbD=await tryFetch(`https://musicbrainz.org/ws/2/release?query=barcode:${v}&fmt=json&limit=1`,`MusicBrainz(${v})`);
+        const rel=mbD?.releases?.[0];
+        if(rel){
+          const artist=(rel['artist-credit']||[]).map(a=>a.artist?.name||a.name||'').filter(Boolean).join(', ');
+          const year=rel.date?rel.date.slice(0,4):'';
+          let coverUrl=null;
+          if(rel.id){
+            const ca=await tryFetch(`https://coverartarchive.org/release/${rel.id}`,'CoverArt');
+            coverUrl=ca?.images?.[0]?.thumbnails?.small||ca?.images?.[0]?.image||null;
+          }
+          result={title:rel.title,author:artist,year,type:'cd',emoji:'💿',coverUrl};
+        }
       }
     }
 
