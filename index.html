@@ -3003,44 +3003,70 @@ async function lookupISBN(){
   if(!resultEl||!inner) return;
   resultEl.style.display='block';
   inner.innerHTML=`<div style="font-size:11px;color:var(--text3);padding:10px 0;">Recherche en cours...</div>`;
+  const tryFetch=async(url)=>{
+    try{const r=await fetch(url);if(!r.ok) return null;return await r.json();}catch(e){console.warn('fetch fail',url,e);return null;}
+  };
   try{
     let result=null;
     const isBarcode=/^\d{8,13}$/.test(q);
+    const isISBN=isBarcode&&(q.startsWith('978')||q.startsWith('979')||q.length===10);
     const gbKey=GOOGLE_BOOKS_KEY?`&key=${GOOGLE_BOOKS_KEY}`:'';
-    const isISBN=isBarcode&&(q.startsWith('978')||q.startsWith('979')||q.length<=10);
+    const tried=[];
 
+    // 1. Google Books (livre ou recherche texte)
     if(isISBN||!isBarcode){
-      // Livre ou recherche texte → Google Books
+      tried.push('Google Books');
       const gbQuery=isBarcode?`isbn:${q}`:encodeURIComponent(q);
-      const gbR=await fetch(`https://www.googleapis.com/books/v1/volumes?q=${gbQuery}&maxResults=1${gbKey}`);
-      const gbD=await gbR.json();
-      const vol=(gbD.items||[])[0]?.volumeInfo;
+      const gbD=await tryFetch(`https://www.googleapis.com/books/v1/volumes?q=${gbQuery}&maxResults=1${gbKey}`);
+      const vol=gbD?.items?.[0]?.volumeInfo;
       if(vol) result={title:vol.title,author:(vol.authors||[]).join(', '),year:vol.publishedDate?vol.publishedDate.slice(0,4):'',type:'book',emoji:'📖',coverUrl:vol.imageLinks?.thumbnail?.replace('http:','https:')||null};
     }
 
+    // 2. Open Library (livre fallback, meilleur pour francais)
+    if(!result&&(isISBN||!isBarcode)){
+      tried.push('Open Library');
+      if(isBarcode){
+        const olD=await tryFetch(`https://openlibrary.org/api/books?bibkeys=ISBN:${q}&format=json&jscmd=data`);
+        const b=olD?.[`ISBN:${q}`];
+        if(b) result={title:b.title,author:(b.authors||[]).map(a=>a.name).join(', '),year:b.publish_date?b.publish_date.slice(-4):'',type:'book',emoji:'📖',coverUrl:b.cover?.medium||null};
+      } else {
+        const olD=await tryFetch(`https://openlibrary.org/search.json?q=${encodeURIComponent(q)}&limit=1&fields=title,author_name,first_publish_year,cover_i`);
+        const doc=olD?.docs?.[0];
+        if(doc) result={title:doc.title,author:(doc.author_name||[]).join(', '),year:doc.first_publish_year?String(doc.first_publish_year):'',type:'book',emoji:'📖',coverUrl:doc.cover_i?`https://covers.openlibrary.org/b/id/${doc.cover_i}-M.jpg`:null};
+      }
+    }
+
+    // 3. MusicBrainz (CD/vinyle, EAN non-livre)
     if(!result&&isBarcode){
-      // CD/vinyle → MusicBrainz barcode lookup
-      const mbR=await fetch(`https://musicbrainz.org/ws/2/release?query=barcode:${q}&fmt=json&limit=1`);
-      const mbD=await mbR.json();
-      const rel=(mbD.releases||[])[0];
+      tried.push('MusicBrainz');
+      const mbD=await tryFetch(`https://musicbrainz.org/ws/2/release?query=barcode:${q}&fmt=json&limit=1`);
+      const rel=mbD?.releases?.[0];
       if(rel){
-        const artist=(rel['artist-credit']||[]).map(a=>a.artist?.name||'').filter(Boolean).join(', ');
+        const artist=(rel['artist-credit']||[]).map(a=>a.artist?.name||a.name||'').filter(Boolean).join(', ');
         const year=rel.date?rel.date.slice(0,4):'';
         result={title:rel.title,author:artist,year,type:'cd',emoji:'💿',coverUrl:null};
       }
     }
 
-    if(!result&&isBarcode){
-      // Film/série → OMDB
-      const omR=await fetch(`https://www.omdbapi.com/?apikey=${OMDB_KEY}&i=${q}`);
-      const omD=await omR.json();
-      if(omD.Title&&omD.Response==='True'){
-        const type=omD.Type==='series'?'series':'dvd';
-        result={title:omD.Title,author:omD.Director!=='N/A'?omD.Director:'',year:omD.Year?.slice(0,4)||'',type,emoji:type==='series'?'📺':'🎬',coverUrl:omD.Poster!=='N/A'?omD.Poster:null};
+    // 4. OMDB (DVD/série par titre — pas par EAN, OMDB utilise IMDB id)
+    if(!result&&!isBarcode){
+      tried.push('OMDB');
+      const omD=await tryFetch(`https://www.omdbapi.com/?apikey=${OMDB_KEY}&s=${encodeURIComponent(q)}`);
+      const item=omD?.Search?.[0];
+      if(item){
+        const type=item.Type==='series'?'series':'dvd';
+        result={title:item.Title,author:'',year:item.Year?.slice(0,4)||'',type,emoji:type==='series'?'📺':'🎬',coverUrl:item.Poster!=='N/A'?item.Poster:null};
       }
     }
 
-    if(!result){inner.innerHTML=`<div style="font-size:11px;color:var(--text3);padding:10px 0;">Aucun résultat pour "${q}". Essaie la saisie manuelle.</div>`;return;}
+    if(!result){
+      inner.innerHTML=`<div style="font-size:11px;color:var(--text3);padding:10px 0;line-height:1.5;">
+        Aucun résultat pour "<strong>${q}</strong>".<br>
+        <span style="color:var(--text3);font-size:10px;">Bases interrogées : ${tried.join(', ')||'aucune'}</span><br>
+        Essaie la saisie manuelle.
+      </div>`;
+      return;
+    }
     inner.innerHTML=`
       <div style="display:flex;gap:12px;align-items:flex-start;padding:10px 0;">
         ${result.coverUrl?`<img src="${result.coverUrl}" style="width:50px;height:70px;object-fit:cover;border-radius:6px;flex-shrink:0;" onerror="this.style.display='none'" />`:`<span style="font-size:32px;flex-shrink:0;">${result.emoji}</span>`}
