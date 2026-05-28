@@ -2963,13 +2963,23 @@ async function startCameraScan(){
       (decodedText, decodedResult) => {
         // Code détecté — garde anti-double déclenchement
         if(scanned) return;
-        const cleanCode = decodedText.replace(/[^0-9X]/gi, '');
-        if(cleanCode.length >= 8){
-          scanned=true;
-          if(navigator.vibrate) navigator.vibrate(100);
-          stopCameraScan();
-          document.getElementById('barcodeInput').value=cleanCode;
-          lookupISBN();
+        try{
+          const cleanCode = decodedText.replace(/[^0-9X]/gi, '');
+          if(cleanCode.length >= 8){
+            scanned=true;
+            if(navigator.vibrate) navigator.vibrate(100);
+            stopCameraScan();
+            const inp=document.getElementById('barcodeInput');
+            if(inp) inp.value=cleanCode;
+            lookupISBN();
+          } else {
+            // Code trop court — feedback debug
+            const inner=document.getElementById('scanResultInner');
+            const resultEl=document.getElementById('scanResult');
+            if(resultEl&&inner){resultEl.style.display='block';inner.innerHTML=`<div style="font-size:11px;color:var(--pink);padding:8px;">Code lu : "${decodedText}" (trop court)</div>`;}
+          }
+        } catch(err){
+          alert('Erreur callback scan: '+err.message);
         }
       },
       (errorMessage) => {
@@ -2996,15 +3006,27 @@ async function startCameraScan(){
 }
 
 async function lookupISBN(){
-  const q=document.getElementById('barcodeInput').value.trim();
-  if(!q) return;
+  const inpEl=document.getElementById('barcodeInput');
+  if(!inpEl){alert('barcodeInput introuvable');return;}
+  const q=inpEl.value.trim();
+  if(!q){alert('Tape un code ou un titre.');return;}
   const resultEl=document.getElementById('scanResult');
   const inner=document.getElementById('scanResultInner');
-  if(!resultEl||!inner) return;
+  if(!resultEl||!inner){alert('scanResult introuvable');return;}
   resultEl.style.display='block';
-  inner.innerHTML=`<div style="font-size:11px;color:var(--text3);padding:10px 0;">Recherche en cours...</div>`;
-  const tryFetch=async(url)=>{
-    try{const r=await fetch(url);if(!r.ok) return null;return await r.json();}catch(e){console.warn('fetch fail',url,e);return null;}
+  resultEl.scrollIntoView({behavior:'smooth',block:'center'});
+  inner.innerHTML=`<div style="font-size:12px;color:var(--teal);padding:10px;background:rgba(0,178,169,.1);border-radius:8px;">🔎 Recherche de "${q}"...</div>`;
+  const log=[];
+  const tryFetch=async(url,name)=>{
+    try{
+      const r=await fetch(url);
+      log.push(`${name}: HTTP ${r.status}`);
+      if(!r.ok) return null;
+      return await r.json();
+    }catch(e){
+      log.push(`${name}: ${e.message}`);
+      return null;
+    }
   };
   try{
     let result=null;
@@ -3017,7 +3039,7 @@ async function lookupISBN(){
     if(isISBN||!isBarcode){
       tried.push('Google Books');
       const gbQuery=isBarcode?`isbn:${q}`:encodeURIComponent(q);
-      const gbD=await tryFetch(`https://www.googleapis.com/books/v1/volumes?q=${gbQuery}&maxResults=1${gbKey}`);
+      const gbD=await tryFetch(`https://www.googleapis.com/books/v1/volumes?q=${gbQuery}&maxResults=1${gbKey}`,'Google Books');
       const vol=gbD?.items?.[0]?.volumeInfo;
       if(vol) result={title:vol.title,author:(vol.authors||[]).join(', '),year:vol.publishedDate?vol.publishedDate.slice(0,4):'',type:'book',emoji:'📖',coverUrl:vol.imageLinks?.thumbnail?.replace('http:','https:')||null};
     }
@@ -3026,11 +3048,11 @@ async function lookupISBN(){
     if(!result&&(isISBN||!isBarcode)){
       tried.push('Open Library');
       if(isBarcode){
-        const olD=await tryFetch(`https://openlibrary.org/api/books?bibkeys=ISBN:${q}&format=json&jscmd=data`);
+        const olD=await tryFetch(`https://openlibrary.org/api/books?bibkeys=ISBN:${q}&format=json&jscmd=data`,'Open Library ISBN');
         const b=olD?.[`ISBN:${q}`];
         if(b) result={title:b.title,author:(b.authors||[]).map(a=>a.name).join(', '),year:b.publish_date?b.publish_date.slice(-4):'',type:'book',emoji:'📖',coverUrl:b.cover?.medium||null};
       } else {
-        const olD=await tryFetch(`https://openlibrary.org/search.json?q=${encodeURIComponent(q)}&limit=1&fields=title,author_name,first_publish_year,cover_i`);
+        const olD=await tryFetch(`https://openlibrary.org/search.json?q=${encodeURIComponent(q)}&limit=1&fields=title,author_name,first_publish_year,cover_i`,'Open Library search');
         const doc=olD?.docs?.[0];
         if(doc) result={title:doc.title,author:(doc.author_name||[]).join(', '),year:doc.first_publish_year?String(doc.first_publish_year):'',type:'book',emoji:'📖',coverUrl:doc.cover_i?`https://covers.openlibrary.org/b/id/${doc.cover_i}-M.jpg`:null};
       }
@@ -3039,7 +3061,7 @@ async function lookupISBN(){
     // 3. MusicBrainz (CD/vinyle, EAN non-livre)
     if(!result&&isBarcode){
       tried.push('MusicBrainz');
-      const mbD=await tryFetch(`https://musicbrainz.org/ws/2/release?query=barcode:${q}&fmt=json&limit=1`);
+      const mbD=await tryFetch(`https://musicbrainz.org/ws/2/release?query=barcode:${q}&fmt=json&limit=1`,'MusicBrainz');
       const rel=mbD?.releases?.[0];
       if(rel){
         const artist=(rel['artist-credit']||[]).map(a=>a.artist?.name||a.name||'').filter(Boolean).join(', ');
@@ -3051,7 +3073,7 @@ async function lookupISBN(){
     // 4. OMDB (DVD/série par titre — pas par EAN, OMDB utilise IMDB id)
     if(!result&&!isBarcode){
       tried.push('OMDB');
-      const omD=await tryFetch(`https://www.omdbapi.com/?apikey=${OMDB_KEY}&s=${encodeURIComponent(q)}`);
+      const omD=await tryFetch(`https://www.omdbapi.com/?apikey=${OMDB_KEY}&s=${encodeURIComponent(q)}`,'OMDB');
       const item=omD?.Search?.[0];
       if(item){
         const type=item.Type==='series'?'series':'dvd';
@@ -3060,10 +3082,10 @@ async function lookupISBN(){
     }
 
     if(!result){
-      inner.innerHTML=`<div style="font-size:11px;color:var(--text3);padding:10px 0;line-height:1.5;">
-        Aucun résultat pour "<strong>${q}</strong>".<br>
-        <span style="color:var(--text3);font-size:10px;">Bases interrogées : ${tried.join(', ')||'aucune'}</span><br>
-        Essaie la saisie manuelle.
+      inner.innerHTML=`<div style="font-size:11px;padding:10px;background:rgba(241,91,190,.1);border-radius:8px;line-height:1.6;color:var(--text2);">
+        <strong style="color:var(--pink);">Aucun résultat pour "${q}"</strong><br>
+        <span style="font-size:10px;color:var(--text3);">isBarcode=${isBarcode} · isISBN=${isISBN}</span><br>
+        <span style="font-size:10px;color:var(--text3);">${log.join(' · ')||'(aucun appel API)'}</span>
       </div>`;
       return;
     }
@@ -3081,7 +3103,10 @@ async function lookupISBN(){
         </div>
       </div>`;
   }catch(e){
-    inner.innerHTML=`<div style="font-size:11px;color:var(--pink);padding:10px 0;">Erreur de recherche. Vérifie ta connexion.</div>`;
+    inner.innerHTML=`<div style="font-size:11px;color:var(--pink);padding:10px;background:rgba(241,91,190,.1);border-radius:8px;line-height:1.6;">
+      <strong>Erreur :</strong> ${e.message}<br>
+      <span style="font-size:10px;color:var(--text3);">${log.join(' · ')||'(aucun appel)'}</span>
+    </div>`;
   }
 }
 
