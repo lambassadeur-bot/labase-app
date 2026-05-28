@@ -2964,9 +2964,11 @@ async function startCameraScan(){
       aspectRatio:1.0,
       disableFlip:false,
       experimentalFeatures:{useBarCodeDetectorIfSupported:true},
-      // Autofocus continu (évite le flou quand on approche le code)
+      // Haute résolution (barres fines des EAN) + autofocus continu
       videoConstraints:{
         facingMode:{ideal:'environment'},
+        width:{ideal:1920},
+        height:{ideal:1080},
         advanced:[{focusMode:'continuous'}]
       },
     };
