@@ -1674,6 +1674,7 @@ html[data-mobile="1"] body .app .main-wrap{
 const BETA_PASSWORD = 'dig2026';   // ← changer ici pour les testeurs
 const OMDB_KEY = 'b4c79a5a';       // ← clé OMDB (visible côté client, à remplacer par un proxy si nécessaire)
 const GOOGLE_BOOKS_KEY = '';       // ← optionnel
+const RAWG_KEY = '';               // ← clé RAWG pour jeux vidéo (gratuite sur rawg.io/apidocs)
 
 const ITEMS=[];
 
@@ -2947,10 +2948,10 @@ async function startCameraScan(){
     const config={
       fps:15,
       qrbox:function(viewfinderWidth, viewfinderHeight){
-        // Box adaptative pour bien capturer les barcodes
-        const minEdge=Math.min(viewfinderWidth, viewfinderHeight);
-        const qrboxSize=Math.floor(minEdge*0.85);
-        return { width:qrboxSize, height:Math.floor(qrboxSize*0.55) };
+        // Box large pour capturer facilement le code-barres
+        const w=Math.floor(viewfinderWidth*0.92);
+        const h=Math.floor(viewfinderHeight*0.55);
+        return { width:w, height:h };
       },
       aspectRatio:1.0,
       disableFlip:false,
@@ -2969,9 +2970,8 @@ async function startCameraScan(){
             scanned=true;
             if(navigator.vibrate) navigator.vibrate(100);
             stopCameraScan();
-            const inp=document.getElementById('barcodeInput');
-            if(inp) inp.value=cleanCode;
-            lookupISBN();
+            // Lance la recherche directement avec le code scanné (pas de copie dans la barre)
+            lookupISBN(cleanCode);
           } else {
             // Code trop court — feedback debug
             const inner=document.getElementById('scanResultInner');
@@ -3005,10 +3005,9 @@ async function startCameraScan(){
   }
 }
 
-async function lookupISBN(){
+async function lookupISBN(directCode){
   const inpEl=document.getElementById('barcodeInput');
-  if(!inpEl){alert('barcodeInput introuvable');return;}
-  const q=inpEl.value.trim();
+  const q=(typeof directCode==='string'?directCode:(inpEl?inpEl.value:'')).trim();
   if(!q){alert('Tape un code ou un titre.');return;}
   const resultEl=document.getElementById('scanResult');
   const inner=document.getElementById('scanResultInner');
@@ -3028,16 +3027,25 @@ async function lookupISBN(){
       return null;
     }
   };
+  const tryFetchText=async(url,name)=>{
+    try{
+      const r=await fetch(url);
+      log.push(`${name}: HTTP ${r.status}`);
+      if(!r.ok) return null;
+      return await r.text();
+    }catch(e){
+      log.push(`${name}: ${e.message}`);
+      return null;
+    }
+  };
   try{
     let result=null;
     const isBarcode=/^\d{8,13}$/.test(q);
     const isISBN=isBarcode&&(q.startsWith('978')||q.startsWith('979')||q.length===10);
     const gbKey=GOOGLE_BOOKS_KEY?`&key=${GOOGLE_BOOKS_KEY}`:'';
-    const tried=[];
 
     // 1. Google Books (livre ou recherche texte)
     if(isISBN||!isBarcode){
-      tried.push('Google Books');
       const gbQuery=isBarcode?`isbn:${q}`:encodeURIComponent(q);
       const gbD=await tryFetch(`https://www.googleapis.com/books/v1/volumes?q=${gbQuery}&maxResults=1${gbKey}`,'Google Books');
       const vol=gbD?.items?.[0]?.volumeInfo;
@@ -3046,7 +3054,6 @@ async function lookupISBN(){
 
     // 2. Open Library (livre fallback, meilleur pour francais)
     if(!result&&(isISBN||!isBarcode)){
-      tried.push('Open Library');
       if(isBarcode){
         const olD=await tryFetch(`https://openlibrary.org/api/books?bibkeys=ISBN:${q}&format=json&jscmd=data`,'Open Library ISBN');
         const b=olD?.[`ISBN:${q}`];
@@ -3060,7 +3067,6 @@ async function lookupISBN(){
 
     // 3. MusicBrainz (CD/vinyle, EAN non-livre)
     if(!result&&isBarcode){
-      tried.push('MusicBrainz');
       const mbD=await tryFetch(`https://musicbrainz.org/ws/2/release?query=barcode:${q}&fmt=json&limit=1`,'MusicBrainz');
       const rel=mbD?.releases?.[0];
       if(rel){
@@ -3070,14 +3076,63 @@ async function lookupISBN(){
       }
     }
 
-    // 4. OMDB (DVD/série par titre — pas par EAN, OMDB utilise IMDB id)
+    // 4. OMDB (films/séries par titre)
     if(!result&&!isBarcode){
-      tried.push('OMDB');
       const omD=await tryFetch(`https://www.omdbapi.com/?apikey=${OMDB_KEY}&s=${encodeURIComponent(q)}`,'OMDB');
       const item=omD?.Search?.[0];
       if(item){
         const type=item.Type==='series'?'series':'dvd';
         result={title:item.Title,author:'',year:item.Year?.slice(0,4)||'',type,emoji:type==='series'?'📺':'🎬',coverUrl:item.Poster!=='N/A'?item.Poster:null};
+      }
+    }
+
+    // 5. BoardGameGeek (jeux de société par titre — réponse XML)
+    if(!result&&!isBarcode){
+      const bggXml=await tryFetchText(`https://boardgamegeek.com/xmlapi2/search?type=boardgame&query=${encodeURIComponent(q)}`,'BGG');
+      if(bggXml){
+        try{
+          const doc=new DOMParser().parseFromString(bggXml,'text/xml');
+          const it=doc.querySelector('item');
+          if(it){
+            const name=it.querySelector('name')?.getAttribute('value')||'';
+            const year=it.querySelector('yearpublished')?.getAttribute('value')||'';
+            const id=it.getAttribute('id');
+            if(name) result={title:name,author:'',year,type:'boardgame',emoji:'🎲',coverUrl:id?`https://cf.geekdo-images.com/camo/0/0/${id}`:null};
+            // récupère la vraie cover via /thing
+            if(name&&id){
+              const thingXml=await tryFetchText(`https://boardgamegeek.com/xmlapi2/thing?id=${id}`,'BGG thing');
+              if(thingXml){
+                const td=new DOMParser().parseFromString(thingXml,'text/xml');
+                const img=td.querySelector('thumbnail')?.textContent;
+                if(img) result.coverUrl=img.startsWith('//')?'https:'+img:img;
+              }
+            }
+          }
+        }catch(e){log.push('BGG parse: '+e.message);}
+      }
+    }
+
+    // 6. RAWG (jeux vidéo par titre — nécessite une clé)
+    if(!result&&!isBarcode&&RAWG_KEY){
+      const rwD=await tryFetch(`https://api.rawg.io/api/games?key=${RAWG_KEY}&search=${encodeURIComponent(q)}&page_size=1`,'RAWG');
+      const g=rwD?.results?.[0];
+      if(g) result={title:g.name,author:'',year:g.released?g.released.slice(0,4):'',type:'game',emoji:'🎮',coverUrl:g.background_image||null};
+    }
+
+    // 7. UPCitemdb (produit générique par code-barres : jeux de société, jeux vidéo, DVD, etc.)
+    if(!result&&isBarcode){
+      const upD=await tryFetch(`https://api.upcitemdb.com/prod/trial/lookup?upc=${q}`,'UPCitemdb');
+      const it=upD?.items?.[0];
+      if(it&&it.title){
+        const cat=(it.category||'').toLowerCase();
+        let type='collect',emoji='📦';
+        if(cat.includes('video game')||cat.includes('jeu')&&cat.includes('vidéo')){type='game';emoji='🎮';}
+        else if(cat.includes('board')||cat.includes('toys & games')){type='boardgame';emoji='🎲';}
+        else if(cat.includes('movie')||cat.includes('dvd')||cat.includes('blu')){type='dvd';emoji='🎬';}
+        else if(cat.includes('music')||cat.includes('cd')||cat.includes('vinyl')){type='cd';emoji='💿';}
+        else if(cat.includes('book')){type='book';emoji='📖';}
+        const img=(it.images&&it.images[0])||null;
+        result={title:it.title,author:it.brand||'',year:'',type,emoji,coverUrl:img};
       }
     }
 
