@@ -1675,6 +1675,7 @@ const BETA_PASSWORD = 'dig2026';   // ← changer ici pour les testeurs
 const OMDB_KEY = 'b4c79a5a';       // ← clé OMDB (visible côté client, à remplacer par un proxy si nécessaire)
 const GOOGLE_BOOKS_KEY = '';       // ← optionnel
 const RAWG_KEY = '';               // ← clé RAWG pour jeux vidéo (gratuite sur rawg.io/apidocs)
+const DISCOGS_TOKEN = '';          // ← token Discogs pour vinyles/CD (gratuit sur discogs.com/settings/developers)
 
 const ITEMS=[];
 
@@ -2964,8 +2965,14 @@ async function startCameraScan(){
       experimentalFeatures:{useBarCodeDetectorIfSupported:true},
     };
 
+    // Caméra arrière + autofocus continu (évite le flou en rapprochant)
+    const videoConstraints={
+      facingMode:'environment',
+      focusMode:'continuous',
+      advanced:[{focusMode:'continuous'}]
+    };
     await _qrScanner.start(
-      { facingMode: "environment" },
+      videoConstraints,
       config,
       (decodedText, decodedResult) => {
         // Code détecté — garde anti-double déclenchement
@@ -3071,7 +3078,25 @@ async function lookupISBN(directCode){
       }
     }
 
-    // 3. MusicBrainz (CD/vinyle, EAN non-livre) — essaie plusieurs formes du code-barres
+    // 3a. Discogs (vinyles/CD par code-barres — meilleure couverture, nécessite un token)
+    if(!result&&isBarcode&&DISCOGS_TOKEN){
+      const variants=[...new Set([q, q.replace(/^0+/,'')])];
+      for(const v of variants){
+        if(result) break;
+        const dgD=await tryFetch(`https://api.discogs.com/database/search?barcode=${v}&token=${DISCOGS_TOKEN}&per_page=1`,`Discogs(${v})`);
+        const rel=dgD?.results?.[0];
+        if(rel){
+          const parts=(rel.title||'').split(' - ');
+          const artist=parts.length>1?parts[0].trim():'';
+          const title=parts.length>1?parts.slice(1).join(' - ').trim():rel.title;
+          const fmt=(rel.format||[]).join(' ').toLowerCase();
+          const type=fmt.includes('vinyl')||fmt.includes('lp')?'vinyl':'cd';
+          result={title,author:artist,year:rel.year||'',type,emoji:type==='vinyl'?'🎵':'💿',coverUrl:rel.cover_image||rel.thumb||null};
+        }
+      }
+    }
+
+    // 3b. MusicBrainz (CD/vinyle, EAN non-livre) — essaie plusieurs formes du code-barres
     if(!result&&isBarcode){
       const variants=[...new Set([q, q.replace(/^0+/,''), '0'+q, q.padStart(13,'0')])];
       for(const v of variants){

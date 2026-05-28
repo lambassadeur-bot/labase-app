@@ -1,5 +1,5 @@
 // DIG PWA Service Worker — cache offline + stratégies réseau
-const CACHE_VERSION = 'dig-v7';
+const CACHE_VERSION = 'dig-v8';
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 
