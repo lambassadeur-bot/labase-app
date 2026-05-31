@@ -1896,7 +1896,9 @@ function addFromSearch(title,type,emoji,meta,btn){
     btn.textContent='✓';btn.classList.add('owned');return;
   }
   const prevKeys=getQuestKeys();
-  ITEMS.push({id:Date.now(),type,emoji,title,meta,stars:0,note:'',status:'todo',wish:false});
+  const base={id:Date.now(),type,emoji,title,meta,stars:0,note:'',status:'todo',wish:false};
+  if(type==='series'){ base.season=1; base.episode=1; base.totalEp=12; }
+  ITEMS.push(base);
   btn.textContent='✓';btn.classList.add('owned');
   renderGrid();saveToStorage();
   setTimeout(()=>checkQuestCompletions(prevKeys),400);
@@ -2068,6 +2070,12 @@ function renderPanel(id){
   if(!item){document.getElementById('panelContent').innerHTML='';return;}
 
   const isSeries=item.type==='series';
+  // Normalise les champs de suivi série (corrige les NaN sur les séries sans données)
+  if(isSeries){
+    if(!item.season||isNaN(item.season)) item.season=1;
+    if(!item.episode||isNaN(item.episode)) item.episode=1;
+    if(!item.totalEp||isNaN(item.totalEp)) item.totalEp=12;
+  }
   const epPct=isSeries?Math.round((item.episode/item.totalEp)*100):0;
 
   const html=`
@@ -2408,7 +2416,10 @@ function toggleWish(id){
 function changeEp(id,delta){
   const item=ITEMS.find(i=>i.id===id);
   if(!item)return;
+  if(!item.episode||isNaN(item.episode)) item.episode=1;
+  if(!item.totalEp||isNaN(item.totalEp)) item.totalEp=12;
   item.episode=Math.max(1,Math.min(item.totalEp,item.episode+delta));
+  saveToStorage();
   renderPanel(id);renderGrid();
 }
 
@@ -3315,7 +3326,10 @@ async function lookupISBN(directCode){
       const gbQuery=isBarcode?`isbn:${q}`:encodeURIComponent(q);
       const gbD=await tryFetch(`https://www.googleapis.com/books/v1/volumes?q=${gbQuery}&maxResults=1${gbKey}`,'Google Books');
       const vol=gbD?.items?.[0]?.volumeInfo;
-      if(vol) result={title:vol.title,author:(vol.authors||[]).join(', '),year:vol.publishedDate?vol.publishedDate.slice(0,4):'',type:'book',emoji:'📖',coverUrl:vol.imageLinks?.thumbnail?.replace('http:','https:')||null};
+      if(vol){
+        const isManga=guessType([...(vol.categories||[]),vol.title||''])==='manga';
+        result={title:vol.title,author:(vol.authors||[]).join(', '),year:vol.publishedDate?vol.publishedDate.slice(0,4):'',type:isManga?'manga':'book',emoji:isManga?'📚':'📖',coverUrl:vol.imageLinks?.thumbnail?.replace('http:','https:')||null};
+      }
     }
 
     // 2. Open Library (livre fallback, meilleur pour francais)
@@ -3323,11 +3337,17 @@ async function lookupISBN(directCode){
       if(isBarcode){
         const olD=await tryFetch(`https://openlibrary.org/api/books?bibkeys=ISBN:${q}&format=json&jscmd=data`,'Open Library ISBN');
         const b=olD?.[`ISBN:${q}`];
-        if(b) result={title:b.title,author:(b.authors||[]).map(a=>a.name).join(', '),year:b.publish_date?b.publish_date.slice(-4):'',type:'book',emoji:'📖',coverUrl:b.cover?.medium||null};
+        if(b){
+          const isManga=guessType([...((b.subjects||[]).map(s=>s.name||'')),b.title||''])==='manga';
+          result={title:b.title,author:(b.authors||[]).map(a=>a.name).join(', '),year:b.publish_date?b.publish_date.slice(-4):'',type:isManga?'manga':'book',emoji:isManga?'📚':'📖',coverUrl:b.cover?.medium||null};
+        }
       } else {
-        const olD=await tryFetch(`https://openlibrary.org/search.json?q=${encodeURIComponent(q)}&limit=1&fields=title,author_name,first_publish_year,cover_i`,'Open Library search');
+        const olD=await tryFetch(`https://openlibrary.org/search.json?q=${encodeURIComponent(q)}&limit=1&fields=title,author_name,first_publish_year,cover_i,subject`,'Open Library search');
         const doc=olD?.docs?.[0];
-        if(doc) result={title:doc.title,author:(doc.author_name||[]).join(', '),year:doc.first_publish_year?String(doc.first_publish_year):'',type:'book',emoji:'📖',coverUrl:doc.cover_i?`https://covers.openlibrary.org/b/id/${doc.cover_i}-M.jpg`:null};
+        if(doc){
+          const isManga=guessType([...((doc.subject||[])),doc.title||''])==='manga';
+          result={title:doc.title,author:(doc.author_name||[]).join(', '),year:doc.first_publish_year?String(doc.first_publish_year):'',type:isManga?'manga':'book',emoji:isManga?'📚':'📖',coverUrl:doc.cover_i?`https://covers.openlibrary.org/b/id/${doc.cover_i}-M.jpg`:null};
+        }
       }
     }
 
@@ -3564,7 +3584,11 @@ async function searchManualSuggestions(q){
           results.push({title:item.Title,author:'',year:item.Year?.slice(0,4)||'',type,emoji:type==='series'?'📺':'🎬',coverUrl:item.Poster!=='N/A'?item.Poster:null});
         });
       } else if(type==='game'){
-        const r=await fetch(`https://api.rawg.io/api/games?search=${encodeURIComponent(q)}&page_size=5&key=`);
+        if(!RAWG_KEY){
+          list.innerHTML=`<div style="font-size:10.5px;color:var(--text3);padding:8px;line-height:1.5;background:var(--bg2);border-radius:8px;border:.5px solid var(--border);">🎮 La recherche de jeux vidéo nécessite une clé RAWG (gratuite). En attendant, saisis le titre à la main.</div>`;
+          return;
+        }
+        const r=await fetch(`https://api.rawg.io/api/games?search=${encodeURIComponent(q)}&page_size=5&key=${RAWG_KEY}`);
         const d=await r.json();
         (d.results||[]).forEach(g=>{
           results.push({title:g.name,author:'',year:g.released?.slice(0,4)||'',type:'game',emoji:'🎮',coverUrl:g.background_image||null});
@@ -5422,6 +5446,7 @@ function setItemPlatform(id,pid){
 }
 
 function toggleFollow(id,btn){
+  followState[id]=!followState[id]; // inverse réellement l'état d'abonnement
   btn.className='friend-btn '+(followState[id]?'following':'follow');
   btn.textContent=followState[id]?'✓ Abonné':'+ Suivre';
 }
