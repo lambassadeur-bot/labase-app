@@ -3416,12 +3416,18 @@ async function lookupISBN(directCode){
       if(isBarcode){
         // Aucune base ne connaît ce code → l'utilisateur le renseigne, on mémorise (socle BDD communautaire)
         const opts=Object.keys(TYPE_META).map(t=>`<option value="${t}">${TYPE_EMOJI[t]||''} ${TYPE_META[t].label}</option>`).join('');
-        inner.innerHTML=`<div style="font-size:11px;padding:12px;background:rgba(0,178,169,.08);border-radius:10px;line-height:1.6;color:var(--text2);">
-          <strong style="color:var(--text1);">Code inconnu des bases : ${q}</strong><br>
-          <span style="font-size:10px;color:var(--text3);">Ajoute-le toi-même — il sera mémorisé pour les prochains scans.</span>
-          <input id="eanManualTitle" placeholder="Titre de l'œuvre" style="width:100%;box-sizing:border-box;margin-top:10px;padding:9px 11px;border-radius:8px;border:.5px solid var(--border);background:var(--bg2);font-size:13px;color:var(--text1);outline:none;" />
-          <select id="eanManualType" style="width:100%;box-sizing:border-box;margin-top:8px;padding:9px 11px;border-radius:8px;border:.5px solid var(--border);background:var(--bg2);font-size:13px;color:var(--text1);outline:none;">${opts}</select>
-          <button onclick="addUnknownEan('${q}')" style="margin-top:10px;width:100%;padding:9px;border-radius:8px;border:none;background:linear-gradient(90deg,#00B2A9,#F15BBE);color:#fff;font-size:12px;font-weight:600;cursor:pointer;">+ Ajouter & mémoriser</button>
+        inner.innerHTML=`<div style="padding:16px 14px;background:linear-gradient(135deg,rgba(0,178,169,.1),rgba(241,91,190,.1));border:.5px solid var(--border);border-radius:14px;line-height:1.5;">
+          <div style="font-size:30px;text-align:center;margin-bottom:6px;">🌱</div>
+          <div style="font-size:14px;font-weight:700;color:var(--text1);text-align:center;">Mince ! Aucune base ne connaît cette œuvre.</div>
+          <div style="font-size:11.5px;color:var(--text2);text-align:center;margin-top:6px;">
+            Aide-nous à <b style="color:var(--teal);">construire la bibliothèque culturelle de DIG</b> 💪<br>
+            Renseigne-la une fois — elle sera reconnue automatiquement à tous les prochains scans.
+          </div>
+          <div style="font-size:9.5px;color:var(--text3);text-align:center;margin-top:6px;font-family:monospace;">code-barres · ${q}</div>
+          <input id="eanManualTitle" placeholder="Titre de l'œuvre…" style="width:100%;box-sizing:border-box;margin-top:12px;padding:11px 12px;border-radius:10px;border:.5px solid var(--border);background:var(--bg2);font-size:15px;color:var(--text1);outline:none;" />
+          <select id="eanManualType" style="width:100%;box-sizing:border-box;margin-top:8px;padding:11px 12px;border-radius:10px;border:.5px solid var(--border);background:var(--bg2);font-size:14px;color:var(--text1);outline:none;">${opts}</select>
+          <button onclick="addUnknownEan('${q}')" style="margin-top:12px;width:100%;padding:12px;border-radius:10px;border:none;background:linear-gradient(90deg,#00B2A9,#F15BBE);color:#fff;font-size:13px;font-weight:700;cursor:pointer;box-shadow:0 4px 14px rgba(0,178,169,.3);">✨ L'ajouter & enrichir DIG</button>
+          <div style="font-size:9.5px;color:var(--text3);text-align:center;margin-top:8px;">Merci pour ta pierre à l'édifice 🧱</div>
         </div>`;
         return;
       }
@@ -3470,6 +3476,7 @@ function addUnknownEan(ean){
   const r={title,author:'',year:'',type,emoji:TYPE_EMOJI[type]||'📦',coverUrl:null};
   saveEanMapping(ean,r);
   addFromScanResult(r);
+  try{ if(typeof showRecoToast==='function') showRecoToast('Merci ! '+title+' rejoint la base 🌱'); }catch(e){}
 }
 
 async function stopCameraScan(){
