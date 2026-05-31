@@ -20,6 +20,7 @@ if('serviceWorker' in navigator){
 }
 </script>
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 // Détection mobile — application IMMÉDIATE et FORCÉE
 (function(){
@@ -1744,6 +1745,19 @@ const OMDB_KEY = 'b4c79a5a';       // ← clé OMDB (visible côté client, à r
 const GOOGLE_BOOKS_KEY = '';       // ← optionnel
 const RAWG_KEY = '';               // ← clé RAWG pour jeux vidéo (gratuite sur rawg.io/apidocs)
 const DISCOGS_TOKEN = 'tFtOitlAapXsHXyZxLgDFnUXZvtckjweqAsvyUMH';          // ← token Discogs pour vinyles/CD
+
+// ── Backend Supabase ──────────────────────────────────────────
+const SUPABASE_URL = 'https://zczqvtjlkozcfjpojnnx.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpjenF2dGpsa296Y2ZqcG9qbm54Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAyMjc4MTQsImV4cCI6MjA5NTgwMzgxNH0.wkJORaQ6DbVvmua7tGtOv7-DFOJ_VgXs1ra2gGCyDn4';
+let sb = null;
+try{
+  if(window.supabase && window.supabase.createClient){
+    sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    console.log('[DIG] Supabase client prêt');
+  } else {
+    console.warn('[DIG] Librairie Supabase non chargée');
+  }
+}catch(e){ console.error('[DIG] Supabase init:', e); }
 
 const ITEMS=[];
 

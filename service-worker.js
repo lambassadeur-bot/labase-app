@@ -1,5 +1,5 @@
 // DIG PWA Service Worker — cache offline + stratégies réseau
-const CACHE_VERSION = 'dig-v16';
+const CACHE_VERSION = 'dig-v17';
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 
@@ -12,6 +12,7 @@ const STATIC_ASSETS = [
   'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css',
   'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js',
   'https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js',
+  'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2',
 ];
 
 // Install — pré-cache les assets statiques
@@ -56,7 +57,9 @@ self.addEventListener('fetch', (event) => {
     url.hostname.includes('coverartarchive.org') ||
     url.hostname.includes('openfoodfacts.org') ||
     url.hostname.includes('wikipedia.org') ||
-    url.hostname.includes('upcitemdb.com')
+    url.hostname.includes('upcitemdb.com') ||
+    url.hostname.includes('nominatim.openstreetmap.org') ||
+    url.hostname.includes('supabase.co')
   ) {
     event.respondWith(networkFirst(request));
     return;
