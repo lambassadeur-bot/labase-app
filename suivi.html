@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DIG — Suivi projet</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{
+    background:#0D0020;
+    font-family:'Courier New',monospace;
+    min-height:100vh;
+    padding:32px 28px 80px;
+    color:#fff;
+  }
+  .header{
+    display:flex;align-items:baseline;gap:16px;
+    margin-bottom:10px;padding-bottom:16px;
+    border-bottom:1px solid rgba(241,91,190,0.25);
+  }
+  .logo{font-size:38px;font-weight:700;color:#FFE566;letter-spacing:-1px;}
+  .logo-sub{font-size:12px;color:rgba(241,91,190,0.8);letter-spacing:2px;text-transform:uppercase;}
+  .header-date{margin-left:auto;font-size:11px;color:rgba(255,255,255,0.25);}
+  .gp{margin:20px 0 32px;}
+  .gp-top{display:flex;justify-content:space-between;font-size:11px;color:rgba(255,255,255,0.35);margin-bottom:6px;text-transform:uppercase;letter-spacing:1px;}
+  .gp-bar{height:5px;background:rgba(255,255,255,0.07);border-radius:10px;overflow:hidden;}
+  .gp-fill{height:100%;background:linear-gradient(90deg,#00B2A9,#F15BBE);border-radius:10px;}
+  .legend{display:flex;gap:20px;margin-bottom:24px;font-size:11px;color:rgba(255,255,255,0.4);flex-wrap:wrap;}
+  .legend-item{display:flex;align-items:center;gap:6px;}
+  .ld{width:12px;height:12px;border-radius:3px;}
+  .ld-done{background:#00B2A9;}
+  .ld-wip{border:1.5px solid #FFE566;background:rgba(255,229,102,0.12);}
+  .ld-todo{border:1.5px solid rgba(241,91,190,0.5);}
+  .themes{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px;}
+  .theme{border-radius:14px;padding:2px;background:linear-gradient(135deg,#00B2A9,#F15BBE);}
+  .theme-inner{background:#130328;border-radius:12px;overflow:hidden;}
+  .theme-header{padding:14px 18px 12px;border-bottom:1px solid rgba(255,255,255,0.06);display:flex;align-items:center;gap:12px;}
+  .theme-icon{font-size:18px;line-height:1;}
+  .theme-title{font-size:14px;font-weight:700;color:#FFE566;}
+  .theme-progress{margin-left:auto;font-size:10px;color:rgba(255,255,255,0.3);letter-spacing:1px;}
+  .theme-bar{height:3px;background:rgba(255,255,255,0.07);}
+  .theme-bar-fill{height:100%;background:linear-gradient(90deg,#00B2A9,#F15BBE);}
+  .tasks{padding:8px 12px 12px;}
+  .task{display:flex;align-items:flex-start;gap:9px;padding:7px 4px;border-bottom:1px solid rgba(255,255,255,0.04);font-size:11.5px;line-height:1.5;}
+  .task:last-child{border-bottom:none;}
+  .task-check{width:15px;height:15px;border-radius:3px;flex-shrink:0;margin-top:2px;display:flex;align-items:center;justify-content:center;font-size:9px;}
+  .task.done .task-check{background:#00B2A9;color:#fff;}
+  .task.done .task-label{color:rgba(255,255,255,0.3);text-decoration:line-through;}
+  .task.todo .task-check{border:1.5px solid rgba(241,91,190,0.45);background:transparent;}
+  .task.todo .task-label{color:rgba(255,255,255,0.75);}
+  .task.wip .task-check{border:1.5px solid #FFE566;background:rgba(255,229,102,0.1);color:#FFE566;}
+  .task.wip .task-label{color:#FFE566;}
+  .task-label{flex:1;}
+  .task-tag{font-size:8px;padding:2px 6px;border-radius:8px;font-weight:700;letter-spacing:0.5px;text-transform:uppercase;flex-shrink:0;margin-top:3px;}
+  .tag-proto{background:rgba(0,178,169,0.15);color:#98D8D8;}
+  .tag-design{background:rgba(241,91,190,0.15);color:#F15BBE;}
+  .tag-logic{background:rgba(255,229,102,0.1);color:#FFE566;}
+  .tag-idea{background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.35);}
+  .session-log{margin-top:40px;}
+  .session-title{font-size:10px;color:rgba(255,255,255,0.25);text-transform:uppercase;letter-spacing:2px;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid rgba(255,255,255,0.06);}
+  .session{display:flex;gap:14px;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.04);font-size:11px;}
+  .session-date{color:rgba(241,91,190,0.7);white-space:nowrap;width:100px;flex-shrink:0;}
+  .session-desc{color:rgba(255,255,255,0.5);line-height:1.6;}
+  /* Tableau bases de données */
+  .dbtable-wrap{margin-top:44px;}
+  .dbtable-title{font-size:10px;color:rgba(255,255,255,0.25);text-transform:uppercase;letter-spacing:2px;margin-bottom:6px;padding-bottom:8px;border-bottom:1px solid rgba(255,255,255,0.06);}
+  .dbtable-sub{font-size:10.5px;color:rgba(255,255,255,0.35);line-height:1.6;margin-bottom:16px;}
+  .dbt-scroll{overflow-x:auto;border-radius:12px;border:1px solid rgba(241,91,190,0.18);}
+  table.dbt{width:100%;border-collapse:collapse;font-size:11.5px;min-width:560px;}
+  .dbt th{text-align:left;padding:10px 12px;color:#FFE566;background:rgba(241,91,190,0.06);text-transform:uppercase;font-size:9px;letter-spacing:1px;border-bottom:1px solid rgba(241,91,190,0.2);}
+  .dbt td{padding:10px 12px;border-bottom:1px solid rgba(255,255,255,0.05);color:rgba(255,255,255,0.7);vertical-align:middle;}
+  .dbt tr:last-child td{border-bottom:none;}
+  .dbt .typecell{font-weight:700;color:#fff;white-space:nowrap;}
+  .dbt .ok{color:#00B2A9;font-weight:700;}
+  .dbt .warn{color:#FFE566;font-weight:700;}
+  .dbt .no{color:#F15BBE;font-weight:700;}
+  .dbt .src{color:rgba(255,255,255,0.5);font-size:10.5px;}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="logo">DIG</div>
+  <div class="logo-sub">suivi projet</div>
+  <div class="header-date">Dernière mise à jour : 31 mai 2026 — session 7</div>
+</div>
+
+<div class="legend">
+  <div class="legend-item"><div class="ld ld-done"></div> Fait</div>
+  <div class="legend-item"><div class="ld ld-wip"></div> En cours</div>
+  <div class="legend-item"><div class="ld ld-todo"></div> À faire</div>
+</div>
+
+<div class="gp">
+  <div class="gp-top"><span>Avancement global</span><span id="gp-pct"></span></div>
+  <div class="gp-bar"><div class="gp-fill" id="gp-fill" style="width:0%"></div></div>
+</div>
+
+<div class="dbtable-sub" style="margin:0 0 20px;">
+  🎯 <strong style="color:#FFE566;">Priorités classées par besoin pour tester</strong> — du plus bloquant (inscription, sécurité) au confort (design, expansion). Ce qui empêche un vrai test utilisateur est en haut.
+</div>
+
+<div class="themes">
+
+  <!-- ── PRIORITÉ 1 : Inscription & Onboarding ── -->
+  <div class="theme"><div class="theme-inner">
+    <div class="theme-header"><div class="theme-icon">🔴</div><div class="theme-title">P1 — Inscription & Onboarding <span style="font-size:9px;color:#F15BBE;">(BLOQUANT TEST)</span></div><div class="theme-progress" id="prog-p1"></div></div>
+    <div class="theme-bar"><div class="theme-bar-fill" id="bar-p1"></div></div>
+    <div class="tasks">
+      <div class="task done"><div class="task-check">✓</div><div class="task-label">Onboarding 3 étapes (prénom, pseudo, couleur avatar)</div><span class="task-tag tag-proto">proto</span></div>
+      <div class="task done"><div class="task-check">✓</div><div class="task-label">Vérification email/SMS — interface inline mobile (simulée)</div><span class="task-tag tag-proto">proto</span></div>
+      <div class="task done"><div class="task-check">✓</div><div class="task-label">Mot de passe beta sur les versions partagées aux testeurs</div><span class="task-tag tag-logic">logique</span></div>
+      <div class="task todo"><div class="task-check"></div><div class="task-label">🔑 SIGN UP / connexion réelle — compte persistant, le plus important pour tester à plusieurs</div><span class="task-tag tag-logic">logique</span></div>
+      <div class="task todo"><div class="task-check"></div><div class="task-label">📧 Vérification email + SMS RÉELLE (Resend + Twilio, anti-bot)</div><span class="task-tag tag-logic">logique</span></div>
+      <div class="task todo"><div class="task-check"></div><div class="task-label">Questionnaire sélection profil / archétypes (4–5)</div><span class="task-tag tag-proto">proto</span></div>
+      <div class="task wip"><div class="task-check">~</div><div class="task-label">Animation onboarding Vice City (voiture, grille, palmiers)</div><span class="task-tag tag-design">design</span></div>
+      <div class="task todo"><div class="task-check"></div><div class="task-label">Nom final de l'app + logo + charte typographique</div><span class="task-tag tag-design">design</span></div>
+    </div>
+  </div></div>
+
+  <!-- ── PRIORITÉ 2 : Sécurité & données ── -->
+  <div class="theme"><div class="theme-inner">
+    <div class="theme-header"><div class="theme-icon">🟠</div><div class="theme-title">P2 — Sécurité & données <span style="font-size:9px;color:#F15BBE;">(BLOQUANT TEST)</span></div><div class="theme-progress" id="prog-p2"></div></div>
+    <div class="theme-bar"><div class="theme-bar-fill" id="bar-p2"></div></div>
+    <div class="tasks">
+      <div class="task done"><div class="task-check">✓</div><div class="task-label">Persistance locale (localStorage : profil, items, index EAN)</div><span class="task-tag tag-logic">logique</span></div>
+      <div class="task wip"><div class="task-check">~</div><div class="task-label">🔑 Clés API (OMDB, Discogs) en clair côté client — à déplacer côté serveur</div><span class="task-tag tag-logic">logique</span></div>
+      <div class="task todo"><div class="task-check"></div><div class="task-label">🔌 Backend Supabase — Auth + Postgres + Storage (gratuit jusqu'à 50k users)</div><span class="task-tag tag-logic">logique</span></div>
+      <div class="task todo"><div class="task-check"></div><div class="task-label">🔄 Migration localStorage → Supabase (sync multi-appareils)</div><span class="task-tag tag-logic">logique</span></div>
+      <div class="task todo"><div class="task-check"></div><div class="task-label">🔍 Recherche d'amis réelle via base utilisateurs partagée</div><span class="task-tag tag-logic">logique</span></div>
+      <div class="task todo"><div class="task-check"></div><div class="task-label">🔒 Confidentialité / RGPD — consentement, export, suppression des données perso</div><span class="task-tag tag-logic">logique</span></div>
+      <div class="task todo"><div class="task-check"></div><div class="task-label">Proxy serveur pour les appels API (cacher les clés)</div><span class="task-tag tag-logic">logique</span></div>
+    </div>
+  </div></div>
+
+  <!-- ── PRIORITÉ 3 : Social — suggestions, recommandations, déconseils ── -->
+  <div class="theme"><div class="theme-inner">
+    <div class="theme-header"><div class="theme-icon">🟡</div><div class="theme-title">P3 — Social : reco & déconseils</div><div class="theme-progress" id="prog-p3"></div></div>
+    <div class="theme-bar"><div class="theme-bar-fill" id="bar-p3"></div></div>
+    <div class="tasks">
+      <div class="task done"><div class="task-check">✓</div><div class="task-label">Commentaires + likes sur un item</div><span class="task-tag tag-proto">proto</span></div>
+      <div class="task done"><div class="task-check">✓</div><div class="task-label">Suggestions personnalisées + tendances (vue Suggestions)</div><span class="task-tag tag-proto">proto</span></div>
+      <div class="task todo"><div class="task-check"></div><div class="task-label">👍 Bouton "Recommander à un ami" depuis un item</div><span class="task-tag tag-proto">proto</span></div>
+      <div class="task todo"><div class="task-check"></div><div class="task-label">👎 DÉCONSEILLER une œuvre à un ami (nouvelle idée — "passe ton tour")</div><span class="task-tag tag-idea">idée</span></div>
+      <div class="task todo"><div class="task-check"></div><div class="task-label">🤝 Recommandations basées sur les goûts partagés (matching collections)</div><span class="task-tag tag-logic">logique</span></div>
+      <div class="task todo"><div class="task-check"></div><div class="task-label">Message perso + proposition de date sur une suggestion</div><span class="task-tag tag-proto">proto</span></div>
+      <div class="task todo"><div class="task-check"></div><div class="task-label">Réponses aux suggestions : dispo / déjà vu / wishlist</div><span class="task-tag tag-proto">proto</span></div>
+      <div class="task todo"><div class="task-check"></div><div class="task-label">Vue profil public fonctionnelle</div><span class="task-tag tag-proto">proto</span></div>
+      <div class="task todo"><div class="task-check"></div><div class="task-label">Système d'amis / abonnements</div><span class="task-tag tag-logic">logique</span></div>
+      <div class="task todo"><div class="task-check"></div><div class="task-label">Communautés par centre d'intérêt + RDV partagé</div><span class="task-tag tag-logic">logique</span></div>
+    </div>
+  </div></div>
+
+  <!-- ── PRIORITÉ 4 : Optimisation mobile & design ── -->
+  <div class="theme"><div class="theme-inner">
+    <div class="theme-header"><div class="theme-icon">🟢</div><div class="theme-title">P4 — Optimisation mobile & design</div><div class="theme-progress" id="prog-p4"></div></div>
+    <div class="theme-bar"><div class="theme-bar-fill" id="bar-p4"></div></div>
+    <div class="tasks">
+      <div class="task done"><div class="task-check">✓</div><div class="task-label">Layout responsive desktop / mobile (sidebar, panneau)</div><span class="task-tag tag-design">design</span></div>
+      <div class="task done"><div class="task-check">✓</div><div class="task-label">Mode jour / nuit Vice City (gradient teal/rose)</div><span class="task-tag tag-design">design</span></div>
+      <div class="task done"><div class="task-check">✓</div><div class="task-label">Harmonisation affichage suggestions + réduction bloc inférieur</div><span class="task-tag tag-design">design</span></div>
+      <div class="task wip"><div class="task-check">~</div><div class="task-label">Optimisation complète UI mobile (zones tactiles, tailles, perfs)</div><span class="task-tag tag-design">design</span></div>
+      <div class="task todo"><div class="task-check"></div><div class="task-label">Vibe visuelle différente selon le profil choisi</div><span class="task-tag tag-design">design</span></div>
+      <div class="task todo"><div class="task-check"></div><div class="task-label">Accessibilité : contrastes, tailles de police, lisibilité</div><span class="task-tag tag-design">design</span></div>
+      <div class="task todo"><div class="task-check"></div><div class="task-label">Filtres avancés + recherche dans la collection</div><span class="task-tag tag-proto">proto</span></div>
+    </div>
+  </div></div>
+
+  <!-- ── PRIORITÉ 5 : Scan & bases de données culturelles ── -->
+  <div class="theme"><div class="theme-inner">
+    <div class="theme-header"><div class="theme-icon">🔵</div><div class="theme-title">P5 — Scan & bases de données</div><div class="theme-progress" id="prog-p5"></div></div>
+    <div class="theme-bar"><div class="theme-bar-fill" id="bar-p5"></div></div>
+    <div class="tasks">
+      <div class="task done"><div class="task-check">✓</div><div class="task-label">Scan caméra code-barres (html5-qrcode : autofocus, HD, anti-faux-positif)</div><span class="task-tag tag-proto">proto</span></div>
+      <div class="task done"><div class="task-check">✓</div><div class="task-label">Livres / mangas par ISBN (Google Books + Open Library)</div><span class="task-tag tag-logic">logique</span></div>
+      <div class="task done"><div class="task-check">✓</div><div class="task-label">CD / vinyles par EAN (Discogs + MusicBrainz)</div><span class="task-tag tag-logic">logique</span></div>
+      <div class="task done"><div class="task-check">✓</div><div class="task-label">Films / séries par titre (OMDB)</div><span class="task-tag tag-logic">logique</span></div>
+      <div class="task done"><div class="task-check">✓</div><div class="task-label">Jeux de société par titre (BoardGameGeek)</div><span class="task-tag tag-logic">logique</span></div>
+      <div class="task wip"><div class="task-check">~</div><div class="task-label">🗂 Index EAN local — socle de la future BDD culturelle communautaire</div><span class="task-tag tag-logic">logique</span></div>
+      <div class="task todo"><div class="task-check"></div><div class="task-label">🌍 BDD EAN COMMUNAUTAIRE partagée (chaque scan validé enrichit la base via Supabase)</div><span class="task-tag tag-idea">idée</span></div>
+      <div class="task todo"><div class="task-check"></div><div class="task-label">🎮 Jeux vidéo par titre (RAWG — clé à brancher)</div><span class="task-tag tag-logic">logique</span></div>
+      <div class="task todo"><div class="task-check"></div><div class="task-label">Base produits EAN pour jeux / DVD (UPCitemdb instable → option payante)</div><span class="task-tag tag-idea">idée</span></div>
+    </div>
+  </div></div>
+
+  <!-- ── PRIORITÉ 6 : Gamification & dopamine ── -->
+  <div class="theme"><div class="theme-inner">
+    <div class="theme-header"><div class="theme-icon">🟣</div><div class="theme-title">P6 — Gamification & dopamine</div><div class="theme-progress" id="prog-p6"></div></div>
+    <div class="theme-bar"><div class="theme-bar-fill" id="bar-p6"></div></div>
+    <div class="tasks">
+      <div class="task done"><div class="task-check">✓</div><div class="task-label">Système XP + niveaux + streak quotidien (prototype)</div><span class="task-tag tag-proto">proto</span></div>
+      <div class="task done"><div class="task-check">✓</div><div class="task-label">Quêtes actives avec barres de progression</div><span class="task-tag tag-proto">proto</span></div>
+      <div class="task done"><div class="task-check">✓</div><div class="task-label">Confettis + modale palier atteint avec prochain objectif</div><span class="task-tag tag-proto">proto</span></div>
+      <div class="task wip"><div class="task-check">~</div><div class="task-label">🏷 Renommer niveaux & badges (Novice, Fouineur...) — à valider avec le client</div><span class="task-tag tag-design">design</span></div>
+      <div class="task todo"><div class="task-check"></div><div class="task-label">Écran complétion item — ressentis, émotions, photo, souvenir</div><span class="task-tag tag-proto">proto</span></div>
+      <div class="task todo"><div class="task-check"></div><div class="task-label">Animation complétion (coffre, XP, level up)</div><span class="task-tag tag-design">design</span></div>
+      <div class="task todo"><div class="task-check"></div><div class="task-label">Quêtes préfabriquées par la commu + concours internes</div><span class="task-tag tag-logic">logique</span></div>
+      <div class="task todo"><div class="task-check"></div><div class="task-label">Rewards IRL au déblocage de niveaux</div><span class="task-tag tag-idea">idée</span></div>
+    </div>
+  </div></div>
+
+  <!-- ── PRIORITÉ 7 : Map & expansion ── -->
+  <div class="theme"><div class="theme-inner">
+    <div class="theme-header"><div class="theme-icon">🟤</div><div class="theme-title">P7 — Map & expansion</div><div class="theme-progress" id="prog-p7"></div></div>
+    <div class="theme-bar"><div class="theme-bar-fill" id="bar-p7"></div></div>
+    <div class="tasks">
+      <div class="task done"><div class="task-check">✓</div><div class="task-label">Map culturelle avec géolocalisation (Leaflet + OSM)</div><span class="task-tag tag-proto">proto</span></div>
+      <div class="task done"><div class="task-check">✓</div><div class="task-label">Filtres périmètre (Près de moi / Régional / National) + domaine</div><span class="task-tag tag-proto">proto</span></div>
+      <div class="task done"><div class="task-check">✓</div><div class="task-label">Ajout de spots culturels (modale complète)</div><span class="task-tag tag-proto">proto</span></div>
+      <div class="task wip"><div class="task-check">~</div><div class="task-label">Mode Voyage — map locale automatique en déplacement</div><span class="task-tag tag-idea">idée</span></div>
+      <div class="task todo"><div class="task-check"></div><div class="task-label">Spots voyage + carnet de voyage culturel par trip</div><span class="task-tag tag-idea">idée</span></div>
+      <div class="task todo"><div class="task-check"></div><div class="task-label">Événements IRL sur la map (salons, expos, concerts)</div><span class="task-tag tag-idea">idée</span></div>
+    </div>
+  </div></div>
+
+  <!-- ── PRIORITÉ 8 : Déploiement & infrastructure ── -->
+  <div class="theme"><div class="theme-inner">
+    <div class="theme-header"><div class="theme-icon">⚫</div><div class="theme-title">P8 — Déploiement & infra</div><div class="theme-progress" id="prog-p8"></div></div>
+    <div class="theme-bar"><div class="theme-bar-fill" id="bar-p8"></div></div>
+    <div class="tasks">
+      <div class="task done"><div class="task-check">✓</div><div class="task-label">PWA : manifest.json, service worker, icônes 192/512</div><span class="task-tag tag-proto">proto</span></div>
+      <div class="task done"><div class="task-check">✓</div><div class="task-label">Cache offline + stratégies réseau (Network First HTML pour MAJ instantanées)</div><span class="task-tag tag-proto">proto</span></div>
+      <div class="task done"><div class="task-check">✓</div><div class="task-label">Installable sur iPhone/Android sans App Store</div><span class="task-tag tag-proto">proto</span></div>
+      <div class="task done"><div class="task-check">✓</div><div class="task-label">🌐 Déploiement Cloudflare Pages (GitHub → auto-deploy) + script deploy.ps1</div><span class="task-tag tag-logic">logique</span></div>
+      <div class="task todo"><div class="task-check"></div><div class="task-label">🔔 Notifications push (Web Push API + Supabase Edge Functions)</div><span class="task-tag tag-logic">logique</span></div>
+      <div class="task todo"><div class="task-check"></div><div class="task-label">📦 Capacitor — empaquetage Android natif (Play Store, 25$ une fois)</div><span class="task-tag tag-idea">idée</span></div>
+      <div class="task todo"><div class="task-check"></div><div class="task-label">🍎 Capacitor iOS — App Store (99$/an, Mac requis)</div><span class="task-tag tag-idea">idée</span></div>
+    </div>
+  </div></div>
+
+</div>
+
+<!-- ── TABLEAU : bases de données par type de support ── -->
+<div class="dbtable-wrap">
+  <div class="dbtable-title">Bases de données par type de support culturel</div>
+  <div class="dbtable-sub">
+    Où l'app va chercher les infos selon le type d'œuvre et le mode (scan code-barres vs recherche par titre).<br>
+    <span class="ok">✅</span> fiable &nbsp;·&nbsp; <span class="warn">⚠️</span> partiel / instable &nbsp;·&nbsp; <span class="no">❌</span> non disponible par cette méthode.
+  </div>
+  <div class="dbt-scroll">
+    <table class="dbt">
+      <thead>
+        <tr><th>Type de support</th><th>Scan code-barres</th><th>Recherche titre</th><th>Bases interrogées</th></tr>
+      </thead>
+      <tbody>
+        <tr><td class="typecell">📖 Livre / Manga</td><td class="ok">✅ ISBN</td><td class="ok">✅</td><td class="src">Google Books + Open Library</td></tr>
+        <tr><td class="typecell">💿 CD</td><td class="ok">✅ EAN</td><td class="no">❌</td><td class="src">Discogs + MusicBrainz</td></tr>
+        <tr><td class="typecell">🎵 Vinyle</td><td class="ok">✅ EAN</td><td class="no">❌</td><td class="src">Discogs + MusicBrainz</td></tr>
+        <tr><td class="typecell">🎬 Film / DVD</td><td class="no">❌</td><td class="ok">✅</td><td class="src">OMDB</td></tr>
+        <tr><td class="typecell">📺 Série</td><td class="no">❌</td><td class="ok">✅</td><td class="src">OMDB</td></tr>
+        <tr><td class="typecell">🎲 Jeu de société</td><td class="warn">⚠️ UPCitemdb</td><td class="ok">✅</td><td class="src">BoardGameGeek (titre)</td></tr>
+        <tr><td class="typecell">🎮 Jeu vidéo</td><td class="warn">⚠️ UPCitemdb</td><td class="warn">⚠️ clé RAWG manquante</td><td class="src">RAWG</td></tr>
+        <tr><td class="typecell">📦 Autre / Collectible</td><td class="warn">⚠️ UPCitemdb</td><td class="no">❌</td><td class="src">UPCitemdb (générique)</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="dbtable-sub" style="margin-top:14px;">
+    💡 <strong style="color:#FFE566;">Stratégie communautaire :</strong> chaque code-barres résolu (ou rempli à la main par un utilisateur) est mémorisé dans un <strong>index EAN</strong>. Aujourd'hui local (localStorage), demain partagé via Supabase → on construit progressivement <strong>notre propre base culturelle</strong>, indépendante des API externes. Plus il y a de testeurs, plus la base se remplit.
+  </div>
+</div>
+
+<div class="session-log">
+  <div class="session-title">Journal des sessions</div>
+  <div class="session">
+    <div class="session-date">31 mai 2026</div>
+    <div class="session-desc">Session 7 — 🚀 Déploiement Cloudflare Pages (GitHub → auto-deploy) + script deploy.ps1 (copie, bump cache SW, commit, push en 1 commande). Onboarding email/SMS passé en interface inline (le prompt() ne marchait pas sur mobile). Mot de passe beta sur les versions testeurs. Scan caméra réparé (cycle de vie de l'élément, formats EAN forcés, haute résolution 1920×1080, autofocus continu, validation par double-lecture anti-faux-positif). Bases de données scan câblées : livres/mangas (Google Books + Open Library), CD/vinyles (Discogs + MusicBrainz), films/séries (OMDB), jeux de société (BGG). Constat : pas de base gratuite par code-barres pour jeux/DVD → stratégie d'index EAN local, futur socle d'une BDD culturelle COMMUNAUTAIRE (Supabase). 🔄 Tracker restructuré : priorités classées par besoin pour tester (inscription → sécurité → social → mobile → bases). Nouvelle idée : déconseiller une œuvre à un ami. Tableau des bases de données par type de support ajouté.</div>
+  </div>
+  <div class="session">
+    <div class="session-date">1 mai 2026</div>
+    <div class="session-desc">Session 6 — 🚀 Passage en PWA (Progressive Web App). Création du dossier dig_pwa avec manifest.json, service-worker.js (cache offline + stratégies réseau), icônes 192/512 générées avec branding teal/rose. App installable sur iPhone/Android sans App Store. Hébergement Netlify Drop. Onboarding renforcé avec vérification email + SMS (anti-bot). Mode nuit avec gradient dramatique teal/rose. Filtre statut en dropdown. Cards communauté harmonisées et compactées. Plan défini : PWA → Backend Supabase → Capacitor pour stores natifs.</div>
+  </div>
+  <div class="session">
+    <div class="session-date">19 avril 2026</div>
+    <div class="session-desc">Session 4 — Map culturelle intégrée avec Leaflet + OpenStreetMap, géolocalisation réelle, filtres périmètre (Près de moi / Régional / National) et filtres domaine (manga, vinyle, jeu...). Mode Voyage défini comme chapitre à part. Communautés publiques/privées avec système de demande d'accès. Système d'amis recentré sur la culture. Panneau détail fusionné en un bloc. Bouton accueil dans la sidebar. Miniatures sur les cards et panneau de détail via Open Library / Wikipedia API. Tracker mis à jour.</div>
+  </div>
+  <div class="session">
+    <div class="session-date">16 avril 2026</div>
+    <div class="session-desc">Session 2 — Suggestions IA par thème intégrées dans la sidebar nav (6 catégories, 4 refs chacune, ajout wishlist). App HTML standalone livrable. Nouvelles features définies : blocs suggestions dans l'accueil, système "Suggérer à un ami" (message + date + RDV partagé), bloc Séries avec tracker épisode. Tracker mis à jour.</div>
+  </div>
+  <div class="session">
+    <div class="session-date">16 avril 2026</div>
+    <div class="session-desc">Session 1 — Prototype UI complet : collection, panneau détail, mode jour/nuit Vice City, toggle panneau, menu utilisateur, modale ajout/scan code-barres, contour dégradé global. Concept DIG défini : vecteur d'identité culturelle, quêtes, profils, events IRL, mode abroad. Animation onboarding Vice City initiée.</div>
+  </div>
+</div>
+
+<script>
+  function calcTheme(id) {
+    const prog = document.getElementById('prog-' + id);
+    const bar  = document.getElementById('bar-' + id);
+    const tasks = prog.closest('.theme-inner').querySelectorAll('.task');
+    const total = tasks.length;
+    const done  = [...tasks].filter(t => t.classList.contains('done')).length;
+    const wip   = [...tasks].filter(t => t.classList.contains('wip')).length;
+    const pct   = Math.round((done + wip * 0.5) / total * 100);
+    prog.textContent = done + '/' + total;
+    bar.style.width  = pct + '%';
+    return { done, wip, total };
+  }
+  const ids = ['p1','p2','p3','p4','p5','p6','p7','p8'];
+  let td=0, tw=0, ta=0;
+  ids.forEach(id => { const r=calcTheme(id); td+=r.done; tw+=r.wip; ta+=r.total; });
+  const gp = Math.round((td + tw*0.5) / ta * 100);
+  document.getElementById('gp-fill').style.width = gp + '%';
+  document.getElementById('gp-pct').textContent  = gp + '% — ' + td + ' tâches complètes / ' + ta;
+</script>
+</body>
+</html>
