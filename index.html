@@ -1211,6 +1211,26 @@ html[data-mobile="1"] .map-domain-filters{padding:8px 10px!important;}
   </div>
 </div>
 
+<!-- Authentification (inscription / connexion) -->
+<div id="authGate" style="display:none;position:fixed;inset:0;z-index:9998;background:#0D0020;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:20px;">
+  <div style="font-size:28px;font-weight:800;background:linear-gradient(90deg,#00B2A9,#F15BBE);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">DIG</div>
+  <div id="authTitle" style="font-size:14px;color:#ddd;letter-spacing:1px;">Crée ton compte</div>
+  <div style="display:flex;flex-direction:column;gap:10px;width:280px;max-width:90vw;">
+    <input id="authEmail" type="email" autocomplete="email" placeholder="Ton email"
+      style="padding:13px 16px;border-radius:10px;border:1px solid #333;background:#1a0030;color:#fff;font-size:16px;outline:none;" />
+    <input id="authPass" type="password" autocomplete="current-password" placeholder="Mot de passe (6 caractères min.)"
+      style="padding:13px 16px;border-radius:10px;border:1px solid #333;background:#1a0030;color:#fff;font-size:16px;outline:none;"
+      onkeydown="if(event.key==='Enter')authSubmit()" />
+    <button id="authSubmit" onclick="authSubmit()"
+      style="padding:13px;border-radius:10px;border:none;background:linear-gradient(90deg,#00B2A9,#F15BBE);color:#fff;font-size:14px;font-weight:700;cursor:pointer;">
+      Créer mon compte
+    </button>
+    <div id="authError" style="display:none;font-size:11.5px;color:#F15BBE;text-align:center;line-height:1.5;"></div>
+    <div id="authMsg" style="display:none;font-size:11.5px;color:#00B2A9;text-align:center;line-height:1.5;background:rgba(0,178,169,.1);padding:10px;border-radius:8px;"></div>
+    <div id="authToggle" onclick="toggleAuthMode()" style="font-size:11.5px;color:#aaa;text-align:center;cursor:pointer;margin-top:4px;">Déjà un compte ? <span style="color:#F15BBE;font-weight:600;">Se connecter</span></div>
+  </div>
+</div>
+
 <div class="overlay" id="overlay" onclick="closeAll()"></div>
 
 <!-- Platform modal -->
@@ -1627,7 +1647,7 @@ html[data-mobile="1"] .map-domain-filters{padding:8px 10px!important;}
             </div>
             <div class="menu-div"></div>
             <div class="menu-section">
-              <div class="menu-item disc"><div class="mi-icon">⇥</div><div class="mi-label">Se déconnecter</div></div>
+              <div class="menu-item disc" onclick="logout()"><div class="mi-icon">⇥</div><div class="mi-label">Se déconnecter</div></div>
             </div>
           </div>
         </div>
@@ -4590,9 +4610,10 @@ function applyProfileToUI(){
   if(menuAv){menuAv.textContent=USER_PROFILE.initials;menuAv.style.background=USER_PROFILE.color;}
 }
 
-function finishOnboarding(){
+async function finishOnboarding(){
   USER_PROFILE={name:obData.name,handle:obData.handle||obData.name.toLowerCase().replace(/\s+/g,'_'),color:obData.color,initials:obData.name.slice(0,2).toUpperCase(),types:obData.types};
   applyProfileToUI();
+  await saveCloudProfile();
   closeOnboarding();startApp();saveToStorage();
 }
 
@@ -4611,13 +4632,105 @@ function checkBetaPass(){
   }
 }
 
-function initApp(){
+// ── Authentification Supabase (email + mot de passe) ──────────
+let authMode='signup';
+function showAuth(){ const g=document.getElementById('authGate'); if(g) g.style.display='flex'; }
+function hideAuth(){ const g=document.getElementById('authGate'); if(g) g.style.display='none'; }
+function _authError(t){ const e=document.getElementById('authError'); if(e){ e.style.display=t?'block':'none'; e.textContent=t||''; } }
+function _authMsg(t){ const e=document.getElementById('authMsg'); if(e){ e.style.display=t?'block':'none'; e.textContent=t||''; } }
+function toggleAuthMode(){
+  authMode = authMode==='signup'?'login':'signup';
+  const isSignup=authMode==='signup';
+  document.getElementById('authTitle').textContent = isSignup?'Crée ton compte':'Content de te revoir 👋';
+  document.getElementById('authSubmit').textContent = isSignup?'Créer mon compte':'Se connecter';
+  document.getElementById('authToggle').innerHTML = isSignup
+    ? 'Déjà un compte ? <span style="color:#F15BBE;font-weight:600;">Se connecter</span>'
+    : 'Pas encore de compte ? <span style="color:#F15BBE;font-weight:600;">En créer un</span>';
+  const p=document.getElementById('authPass'); if(p) p.setAttribute('autocomplete', isSignup?'new-password':'current-password');
+  _authError(''); _authMsg('');
+}
+function _traduireAuthError(m){
+  m=(m||'').toLowerCase();
+  if(m.includes('already registered')||m.includes('already exists')||m.includes('user already')) return "Cet email a déjà un compte. Connecte-toi.";
+  if(m.includes('invalid login')||m.includes('invalid credentials')) return "Email ou mot de passe incorrect.";
+  if(m.includes('email not confirmed')) return "Confirme d'abord ton email (vérifie ta boîte mail).";
+  if(m.includes('password')) return "Mot de passe trop court (6 caractères min.).";
+  if(m.includes('rate limit')) return "Trop de tentatives, patiente une minute.";
+  return "Erreur : "+m;
+}
+async function authSubmit(){
+  if(!sb){ _authError("Serveur indisponible. Réessaie dans un instant."); return; }
+  const email=(document.getElementById('authEmail').value||'').trim();
+  const pass=document.getElementById('authPass').value||'';
+  _authError(''); _authMsg('');
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){ _authError("Entre un email valide."); return; }
+  if(pass.length<6){ _authError("Mot de passe : 6 caractères minimum."); return; }
+  const btn=document.getElementById('authSubmit'); const old=btn.textContent; btn.disabled=true; btn.textContent='…';
+  try{
+    if(authMode==='signup'){
+      const {data,error}=await sb.auth.signUp({email,password:pass});
+      if(error){ _authError(_traduireAuthError(error.message)); return; }
+      if(data.session){ await onAuthed(data.session); }
+      else { _authMsg("Compte créé ! Vérifie ta boîte mail pour confirmer, puis connecte-toi."); toggleAuthMode(); }
+    } else {
+      const {data,error}=await sb.auth.signInWithPassword({email,password:pass});
+      if(error){ _authError(_traduireAuthError(error.message)); return; }
+      await onAuthed(data.session);
+    }
+  }catch(e){ _authError("Erreur : "+e.message); }
+  finally{ btn.disabled=false; btn.textContent=old; }
+}
+async function onAuthed(session){
+  if(!session) return;
+  hideAuth();
+  const prof=await loadCloudProfile(session.user.id);
+  if(prof && prof.name){
+    USER_PROFILE={name:prof.name,handle:prof.handle||'',color:prof.color||'#00B2A9',initials:prof.initials||prof.name.slice(0,2).toUpperCase(),types:prof.types||[]};
+    applyProfileToUI(); startApp();
+  } else {
+    // Nouveau compte : onboarding pour compléter le profil (email déjà vérifié par l'auth)
+    obData.email=session.user.email||''; obData.emailVerified=true;
+    showOnboarding();
+  }
+}
+async function loadCloudProfile(uid){
+  try{
+    const {data,error}=await sb.from('profiles').select('*').eq('id',uid).maybeSingle();
+    if(error){ console.warn('loadCloudProfile:',error.message); return null; }
+    return data;
+  }catch(e){ return null; }
+}
+async function saveCloudProfile(){
+  if(!sb) return;
+  try{
+    const {data:{session}}=await sb.auth.getSession();
+    if(!session) return;
+    const {error}=await sb.from('profiles').upsert({
+      id:session.user.id, name:USER_PROFILE.name, handle:USER_PROFILE.handle||null,
+      color:USER_PROFILE.color, initials:USER_PROFILE.initials, types:USER_PROFILE.types||[]
+    });
+    if(error) console.warn('saveCloudProfile:',error.message);
+  }catch(e){ console.warn('saveCloudProfile:',e.message); }
+}
+async function logout(){
+  try{ if(sb) await sb.auth.signOut(); }catch(e){}
+  location.reload();
+}
+
+async function initApp(){
   applyMobileLayout();
   loadFromStorage();
-  if(!USER_PROFILE){ showOnboarding(); } else {
-    applyProfileToUI();
-    startApp();
+  if(sb){
+    try{
+      const {data:{session}}=await sb.auth.getSession();
+      if(session){ await onAuthed(session); return; }
+    }catch(e){ console.warn('getSession:',e.message); }
+    authMode='signup'; toggleAuthMode(); toggleAuthMode(); // initialise les libellés
+    showAuth();
+    return;
   }
+  // Fallback sans backend (ancien comportement local)
+  if(!USER_PROFILE){ showOnboarding(); } else { applyProfileToUI(); startApp(); }
 }
 
 document.addEventListener("DOMContentLoaded", ()=>{
