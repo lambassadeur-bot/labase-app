@@ -233,6 +233,47 @@ html[data-mobile="1"] body .app .main-wrap{
 [data-mobile="1"] .filterbar-gb .gb-inner{padding:6px 8px!important;flex-wrap:wrap!important;gap:4px!important;}
 [data-mobile="1"] .grid{grid-template-columns:repeat(auto-fill,minmax(90px,1fr))!important;gap:6px!important;}
 
+/* ── Améliorations confort mobile (scoppées data-mobile) ── */
+/* Empêche tout débordement horizontal indésirable */
+html[data-mobile="1"], html[data-mobile="1"] body{max-width:100%!important;overflow-x:hidden!important;}
+html[data-mobile="1"] .main-wrap{overflow-x:hidden!important;}
+
+/* Zones tactiles : ~44px de cible sur les éléments cliquables clés
+   (on garde la taille visuelle compacte mais on agrandit la zone de tap via padding/min-height) */
+html[data-mobile="1"] .nav-item{min-height:38px!important;}
+html[data-mobile="1"] .ftab{min-height:34px!important;display:inline-flex!important;align-items:center!important;}
+html[data-mobile="1"] .mtab{min-height:40px!important;display:flex!important;align-items:center!important;padding:8px 14px!important;}
+html[data-mobile="1"] .f-cancel,
+html[data-mobile="1"] .f-add{min-height:42px!important;padding:10px 18px!important;font-size:13px!important;}
+html[data-mobile="1"] .modal-close{width:34px!important;height:34px!important;font-size:15px!important;}
+html[data-mobile="1"] .footer-row{min-height:40px!important;}
+html[data-mobile="1"] .av-menu-btn{width:34px!important;height:34px!important;font-size:12px!important;}
+html[data-mobile="1"] .send-btn{width:34px!important;height:34px!important;}
+html[data-mobile="1"] .menu-item{min-height:42px!important;padding:9px 8px!important;}
+
+/* Modale : largeur responsive (le 400px fixe débordait sur ~360px) */
+html[data-mobile="1"] .modal{width:calc(100vw - 24px)!important;max-width:420px!important;max-height:92vh!important;}
+html[data-mobile="1"] .modal-inner{max-height:calc(92vh - 4px)!important;}
+html[data-mobile="1"] .modal-body{max-height:calc(92vh - 150px)!important;-webkit-overflow-scrolling:touch;}
+/* Champs de formulaire/inputs : >=16px pour éviter le zoom auto iOS + cible tactile */
+html[data-mobile="1"] .fi,
+html[data-mobile="1"] .cin,
+html[data-mobile="1"] .ob-input,
+html[data-mobile="1"] .sidebar-search-wrap input{font-size:16px!important;}
+html[data-mobile="1"] .fi,
+html[data-mobile="1"] .ob-input{padding:11px 12px!important;}
+html[data-mobile="1"] .fbtn{padding:11px 14px!important;}
+html[data-mobile="1"] .tbtn{min-height:40px!important;padding:9px 4px!important;}
+/* Type-grid de la modale : moins serré sur petit écran */
+html[data-mobile="1"] .type-grid{gap:6px!important;}
+
+/* Onboarding : cibles tactiles confortables */
+html[data-mobile="1"] .ob-type{min-height:64px!important;}
+html[data-mobile="1"] .ob-btn{min-height:48px!important;}
+
+/* Filtres map scrollables : indiquer le scroll horizontal sans casser */
+html[data-mobile="1"] .map-domain-filters{padding:8px 10px!important;}
+
 @media(max-width:1100px){
   .sidebar-wrap{width:185px!important;}
   .panel-wrapper{width:210px!important;}
@@ -1134,6 +1175,22 @@ html[data-mobile="1"] body .app .main-wrap{
 .ob-btn:not(:disabled):hover{opacity:.9;}
 .ob-back{font-size:11px;color:rgba(255,255,255,.4);cursor:pointer;margin-bottom:12px;display:inline-block;}
 .ob-back:hover{color:rgba(255,255,255,.7);}
+
+/* === P3 : recommander / déconseiller === */
+.reco-actions{display:flex;gap:8px;}
+.reco-btn{flex:1;padding:9px 8px;border-radius:9px;border:none;font-size:11.5px;font-weight:500;cursor:pointer;font-family:inherit;transition:opacity .15s,transform .12s;display:flex;align-items:center;justify-content:center;gap:5px;}
+.reco-btn:hover{opacity:.9;transform:translateY(-1px);}
+.reco-btn.reco-up{background:linear-gradient(135deg,#00B2A9,#F15BBE);color:#fff;}
+.reco-btn.reco-down{background:var(--bg2);color:var(--text2);border:.5px solid var(--border);}
+.reco-modal-title{font-size:14px;font-weight:500;color:var(--text1);}
+.reco-friend{display:flex;align-items:center;gap:10px;padding:9px 11px;border-radius:10px;border:.5px solid var(--border);background:var(--bg2);cursor:pointer;transition:border-color .15s,background .15s;}
+.reco-friend:hover{border-color:var(--teal);}
+.reco-friend.selected{border-color:var(--teal);box-shadow:0 0 0 1.5px rgba(0,178,169,.2);background:rgba(0,178,169,.06);}
+.reco-friend-av{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;font-weight:600;flex-shrink:0;}
+.reco-friend-name{font-size:12px;font-weight:500;color:var(--text1);}
+.reco-friend-handle{font-size:10px;color:var(--text3);}
+.reco-send{width:100%;padding:11px;border-radius:10px;background:linear-gradient(135deg,#00B2A9,#F15BBE);color:#fff;border:none;font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;}
+.reco-send:disabled{opacity:.35;cursor:default;}
 </style>
 </head>
 <body>
@@ -1241,6 +1298,17 @@ html[data-mobile="1"] body .app .main-wrap{
       <button class="f-cancel" onclick="closeModal()">Annuler</button>
       <button class="f-add" onclick="submitManualAdd()">+ Ajouter à ma collection</button>
     </div>
+  </div></div>
+</div>
+
+<!-- Reco / Déconseil modal (P3) -->
+<div class="modal-overlay" id="recoModal">
+  <div class="modal"><div class="modal-inner">
+    <div class="modal-head">
+      <div class="reco-modal-title" id="recoModalTitle">Recommander à un ami</div>
+      <button class="modal-close" onclick="closeRecoModal()">✕</button>
+    </div>
+    <div class="modal-body" id="recoModalBody"></div>
   </div></div>
 </div>
 
@@ -2059,6 +2127,15 @@ function renderPanel(id){
         <button class="wish-btn" style="width:100%;margin:0;" onclick="toggleWish(${item.id})">${item.wish?'✓ Dans ma wishlist':'♡ Ajouter à ma wishlist'}</button>
       </div>
 
+      <!-- Recommander / Déconseiller à un ami -->
+      <div style="padding:10px 14px;border-bottom:.5px solid var(--border);flex-shrink:0;">
+        <div class="p-label" style="margin-bottom:6px;">Partager ton avis à un ami</div>
+        <div class="reco-actions">
+          <button class="reco-btn reco-up" onclick="openRecoModal(${item.id},'reco')">👍 Recommander</button>
+          <button class="reco-btn reco-down" onclick="openRecoModal(${item.id},'deconseil')">👎 Déconseiller</button>
+        </div>
+      </div>
+
       <!-- Commentaires -->
       <div class="p-label" style="flex-shrink:0;padding:10px 14px 4px;">Commentaires</div>
       <div id="comments-${item.id}" style="flex:1;overflow-y:auto;padding:0 14px 8px;display:flex;flex-direction:column;gap:6px;min-height:40px;">
@@ -2094,6 +2171,128 @@ function renderPanel(id){
   const pImg=document.getElementById('panel-cover-img-'+item.id);
   const pFb=document.getElementById('panel-cover-fb-'+item.id);
   if(pImg&&pFb) loadCover(item,pImg,pFb);
+}
+
+// ── Recommander / Déconseiller à un ami (P3) ──────────────────
+// Persistance : localStorage 'dig_reco_sent' = tableau de
+// {itemId, type:'reco'|'deconseil', amiId, message, date}
+let RECO_SENT=[];
+function loadRecoSent(){
+  try{const r=localStorage.getItem('dig_reco_sent');if(r) RECO_SENT=JSON.parse(r)||[];}catch(e){RECO_SENT=[];}
+}
+function saveRecoSent(){
+  try{localStorage.setItem('dig_reco_sent', JSON.stringify(RECO_SENT));}catch(e){}
+}
+
+let _recoCtx=null; // {itemId, type, amiId}
+
+// Liste des amis disponibles pour recommander : on réutilise les
+// abonnements existants (FRIENDS filtrés par followState).
+function getRecoFriends(){
+  if(typeof FRIENDS==='undefined' || !Array.isArray(FRIENDS)) return [];
+  if(typeof followState==='object' && followState){
+    const following=FRIENDS.filter(f=>followState[f.id]);
+    if(following.length) return following;
+  }
+  return FRIENDS;
+}
+
+function openRecoModal(itemId,type){
+  const item=ITEMS.find(i=>i.id===itemId);
+  if(!item) return;
+  _recoCtx={itemId,type,amiId:null};
+  const overlay=document.getElementById('recoModal');
+  const titleEl=document.getElementById('recoModalTitle');
+  const body=document.getElementById('recoModalBody');
+  if(!overlay||!body) return;
+
+  const isReco=type==='reco';
+  if(titleEl) titleEl.textContent=(isReco?'👍 Recommander':'👎 Déconseiller')+' à un ami';
+
+  const friends=getRecoFriends();
+  const friendsHtml = friends.length===0
+    ? `<div style="font-size:12px;color:var(--text3);line-height:1.6;padding:14px;text-align:center;background:var(--bg2);border-radius:10px;border:.5px solid var(--border);">
+         Tu ne suis encore personne. Va dans <b>Amis</b> pour trouver des contacts, puis reviens partager ton avis.
+       </div>`
+    : friends.map(f=>`
+        <div class="reco-friend" id="reco-friend-${f.id}" onclick="selectRecoFriend('${f.id}')">
+          <div class="reco-friend-av" style="background:${f.color||'var(--teal)'}">${f.initials||(f.name?f.name.slice(0,2).toUpperCase():'?')}</div>
+          <div style="flex:1;min-width:0;">
+            <div class="reco-friend-name">${f.name||''}</div>
+            <div class="reco-friend-handle">${f.handle||''}</div>
+          </div>
+        </div>`).join('');
+
+  const verb=isReco?'recommandes':'déconseilles';
+  body.innerHTML=`
+    <div style="font-size:12px;color:var(--text2);margin-bottom:10px;line-height:1.5;">
+      Tu ${verb} <b style="color:var(--text1);">${item.title}</b>. Choisis un ami :
+    </div>
+    <div style="display:flex;flex-direction:column;gap:7px;max-height:220px;overflow-y:auto;margin-bottom:12px;">
+      ${friendsHtml}
+    </div>
+    ${friends.length===0?'':`
+    <div class="flabel" style="margin-bottom:5px;">Message (optionnel)</div>
+    <textarea id="recoMsgInput" placeholder="${isReco?'Tu vas adorer, fonce !':'Franchement, passe ton tour...'}"
+      style="width:100%;box-sizing:border-box;min-height:60px;padding:9px 11px;border-radius:10px;border:.5px solid var(--border);background:var(--bg2);font-size:12px;color:var(--text1);font-family:inherit;resize:none;outline:none;margin-bottom:12px;"></textarea>
+    <button class="reco-send" id="recoSendBtn" disabled onclick="sendReco()">Envoyer</button>
+    `}
+  `;
+  overlay.classList.add('on');
+}
+
+function selectRecoFriend(amiId){
+  if(!_recoCtx) return;
+  _recoCtx.amiId=amiId;
+  document.querySelectorAll('.reco-friend').forEach(el=>el.classList.remove('selected'));
+  const sel=document.getElementById('reco-friend-'+amiId);
+  if(sel) sel.classList.add('selected');
+  const btn=document.getElementById('recoSendBtn');
+  if(btn) btn.disabled=false;
+}
+
+function sendReco(){
+  if(!_recoCtx||!_recoCtx.amiId) return;
+  const item=ITEMS.find(i=>i.id===_recoCtx.itemId);
+  const friends=getRecoFriends();
+  const ami=friends.find(f=>String(f.id)===String(_recoCtx.amiId));
+  const msgEl=document.getElementById('recoMsgInput');
+  const message=msgEl?msgEl.value.trim():'';
+
+  RECO_SENT.push({
+    itemId:_recoCtx.itemId,
+    type:_recoCtx.type,
+    amiId:_recoCtx.amiId,
+    message,
+    date:new Date().toISOString()
+  });
+  saveRecoSent();
+
+  const isReco=_recoCtx.type==='reco';
+  const amiName=ami?(ami.name||ami.handle||'ton ami'):'ton ami';
+  closeRecoModal();
+  showRecoToast(`${isReco?'Recommandé':'Déconseillé'} à ${amiName} ${isReco?'👍':'👎'}`);
+}
+
+function closeRecoModal(){
+  const overlay=document.getElementById('recoModal');
+  if(overlay) overlay.classList.remove('on');
+  _recoCtx=null;
+}
+
+// Petit toast de confirmation (vanilla, autodétruit)
+function showRecoToast(text){
+  let t=document.getElementById('recoToast');
+  if(!t){
+    t=document.createElement('div');
+    t.id='recoToast';
+    t.style.cssText='position:fixed;left:50%;bottom:32px;transform:translateX(-50%) translateY(20px);z-index:9999;padding:12px 20px;border-radius:30px;background:linear-gradient(135deg,#00B2A9,#F15BBE);color:#fff;font-size:13px;font-weight:500;box-shadow:0 6px 24px rgba(0,178,169,.35);opacity:0;transition:opacity .25s,transform .25s;pointer-events:none;font-family:inherit;';
+    document.body.appendChild(t);
+  }
+  t.textContent=text;
+  requestAnimationFrame(()=>{t.style.opacity='1';t.style.transform='translateX(-50%) translateY(0)';});
+  clearTimeout(t._timer);
+  t._timer=setTimeout(()=>{t.style.opacity='0';t.style.transform='translateX(-50%) translateY(20px)';},2600);
 }
 
 function toggleLike(id){
@@ -3037,6 +3236,18 @@ async function startCameraScan(){
   }
 }
 
+// === Index EAN local (futur socle de la BDD communautaire) ===
+const TYPE_EMOJI={manga:'📚',vinyl:'🎵',book:'📖',game:'🎮',dvd:'🎬',series:'📺',cd:'💿',collect:'📦',boardgame:'🎲'};
+function getEanIndex(){ try{ return JSON.parse(localStorage.getItem('dig_ean_index')||'{}'); }catch(e){ return {}; } }
+function saveEanMapping(ean,r){
+  if(!ean||!r||!r.title) return;
+  try{
+    const idx=getEanIndex();
+    idx[ean]={title:r.title,author:r.author||'',year:r.year||'',type:r.type,emoji:r.emoji||TYPE_EMOJI[r.type]||'📦',coverUrl:r.coverUrl||null,ts:Date.now()};
+    localStorage.setItem('dig_ean_index',JSON.stringify(idx));
+  }catch(e){ console.log('saveEanMapping:',e.message); }
+}
+
 async function lookupISBN(directCode){
   const inpEl=document.getElementById('barcodeInput');
   const q=(typeof directCode==='string'?directCode:(inpEl?inpEl.value:'')).trim();
@@ -3075,6 +3286,12 @@ async function lookupISBN(directCode){
     const isBarcode=/^\d{8,13}$/.test(q);
     const isISBN=isBarcode&&(q.startsWith('978')||q.startsWith('979')||q.length===10);
     const gbKey=GOOGLE_BOOKS_KEY?`&key=${GOOGLE_BOOKS_KEY}`:'';
+
+    // 0. Index EAN local (socle BDD communautaire) — résultat instantané si déjà connu
+    if(isBarcode){
+      const cached=getEanIndex()[q];
+      if(cached){ result={...cached}; log.push('Index local: trouvé'); }
+    }
 
     // 1. Google Books (livre ou recherche texte)
     if(isISBN||!isBarcode){
@@ -3196,13 +3413,26 @@ async function lookupISBN(directCode){
     }
 
     if(!result){
+      if(isBarcode){
+        // Aucune base ne connaît ce code → l'utilisateur le renseigne, on mémorise (socle BDD communautaire)
+        const opts=Object.keys(TYPE_META).map(t=>`<option value="${t}">${TYPE_EMOJI[t]||''} ${TYPE_META[t].label}</option>`).join('');
+        inner.innerHTML=`<div style="font-size:11px;padding:12px;background:rgba(0,178,169,.08);border-radius:10px;line-height:1.6;color:var(--text2);">
+          <strong style="color:var(--text1);">Code inconnu des bases : ${q}</strong><br>
+          <span style="font-size:10px;color:var(--text3);">Ajoute-le toi-même — il sera mémorisé pour les prochains scans.</span>
+          <input id="eanManualTitle" placeholder="Titre de l'œuvre" style="width:100%;box-sizing:border-box;margin-top:10px;padding:9px 11px;border-radius:8px;border:.5px solid var(--border);background:var(--bg2);font-size:13px;color:var(--text1);outline:none;" />
+          <select id="eanManualType" style="width:100%;box-sizing:border-box;margin-top:8px;padding:9px 11px;border-radius:8px;border:.5px solid var(--border);background:var(--bg2);font-size:13px;color:var(--text1);outline:none;">${opts}</select>
+          <button onclick="addUnknownEan('${q}')" style="margin-top:10px;width:100%;padding:9px;border-radius:8px;border:none;background:linear-gradient(90deg,#00B2A9,#F15BBE);color:#fff;font-size:12px;font-weight:600;cursor:pointer;">+ Ajouter & mémoriser</button>
+        </div>`;
+        return;
+      }
       inner.innerHTML=`<div style="font-size:11px;padding:10px;background:rgba(241,91,190,.1);border-radius:8px;line-height:1.6;color:var(--text2);">
         <strong style="color:var(--pink);">Aucun résultat pour "${q}"</strong><br>
-        <span style="font-size:10px;color:var(--text3);">isBarcode=${isBarcode} · isISBN=${isISBN}</span><br>
-        <span style="font-size:10px;color:var(--text3);">${log.join(' · ')||'(aucun appel API)'}</span>
+        <span style="font-size:10px;color:var(--text3);">Astuce : pour un film, une série, un jeu de société ou un jeu vidéo, cherche plutôt par <b>titre</b> (onglet Saisie manuelle).</span>
       </div>`;
       return;
     }
+    // Mémorise le mapping code-barres → œuvre (enrichit l'index local)
+    if(isBarcode) saveEanMapping(q,result);
     inner.innerHTML=`
       <div style="display:flex;gap:12px;align-items:flex-start;padding:10px 0;">
         ${result.coverUrl?`<img src="${result.coverUrl}" style="width:50px;height:70px;object-fit:cover;border-radius:6px;flex-shrink:0;" onerror="this.style.display='none'" />`:`<span style="font-size:32px;flex-shrink:0;">${result.emoji}</span>`}
@@ -3228,6 +3458,18 @@ function addFromScanResult(r){
   if(typeof r==='string') r=JSON.parse(r);
   addFromSearch(r.title,r.type,r.emoji,r.author?`${r.author}${r.year?' · '+r.year:''}`:r.year,null);
   closeModal();
+}
+
+// Code-barres inconnu rempli à la main : on ajoute ET on mémorise dans l'index EAN
+function addUnknownEan(ean){
+  const t=document.getElementById('eanManualTitle');
+  const ty=document.getElementById('eanManualType');
+  const title=t?t.value.trim():'';
+  const type=ty?ty.value:'collect';
+  if(!title){ if(t){t.style.borderColor='var(--pink)';t.focus();} return; }
+  const r={title,author:'',year:'',type,emoji:TYPE_EMOJI[type]||'📦',coverUrl:null};
+  saveEanMapping(ean,r);
+  addFromScanResult(r);
 }
 
 async function stopCameraScan(){
@@ -4029,6 +4271,7 @@ function loadFromStorage(){
     const i=localStorage.getItem('dig_items');
     if(p) USER_PROFILE=JSON.parse(p);
     if(i){const saved=JSON.parse(i);saved.forEach(item=>ITEMS.push(item));}
+    loadRecoSent();
   }catch(e){}
 }
 
@@ -4038,6 +4281,7 @@ function resetAllData(){
     localStorage.removeItem('dig_profile');
     localStorage.removeItem('dig_items');
     localStorage.removeItem('dig_wallpaper');
+    localStorage.removeItem('dig_reco_sent');
   }catch(e){}
   location.reload();
 }
