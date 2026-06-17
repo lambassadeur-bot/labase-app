@@ -1196,6 +1196,29 @@ html[data-mobile="1"] .map-domain-filters{padding:8px 10px!important;}
 </head>
 <body>
 <!-- Overlay beta password -->
+<!-- Écran d'accueil : choix log in / sign up / mot de passe -->
+<div id="landingGate" style="display:none;position:fixed;inset:0;z-index:9999;background:#0D0020;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:20px;">
+  <div style="font-size:40px;font-weight:800;background:linear-gradient(90deg,#00B2A9,#F15BBE);-webkit-background-clip:text;-webkit-text-fill-color:transparent;letter-spacing:-1px;">DIG</div>
+  <div style="font-size:13px;color:#aaa;letter-spacing:1px;margin-bottom:10px;">Ta mémoire culturelle</div>
+  <div style="display:flex;flex-direction:column;gap:11px;width:280px;max-width:90vw;">
+    <button onclick="chooseAuth('login')"
+      style="padding:14px;border-radius:11px;border:none;background:linear-gradient(90deg,#00B2A9,#F15BBE);color:#fff;font-size:14px;font-weight:700;cursor:pointer;">
+      Se connecter
+    </button>
+    <button onclick="chooseAuth('signup')"
+      style="padding:14px;border-radius:11px;border:1px solid #00B2A9;background:transparent;color:#fff;font-size:14px;font-weight:600;cursor:pointer;">
+      Créer un compte
+    </button>
+    <div style="display:flex;align-items:center;gap:8px;color:#555;font-size:11px;margin:2px 0;">
+      <div style="flex:1;height:1px;background:#333;"></div>ou<div style="flex:1;height:1px;background:#333;"></div>
+    </div>
+    <button onclick="choosePassword()"
+      style="padding:12px;border-radius:11px;border:1px solid #333;background:#1a0030;color:#ccc;font-size:13px;cursor:pointer;">
+      🔑 Entrer avec un mot de passe
+    </button>
+  </div>
+</div>
+
 <div id="betaGate" style="display:none;position:fixed;inset:0;z-index:9999;background:#0D0020;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;">
   <div style="font-size:28px;font-weight:800;background:linear-gradient(90deg,#00B2A9,#F15BBE);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">DIG</div>
   <div style="font-size:13px;color:#aaa;letter-spacing:1px;">ACCÈS BETA</div>
@@ -1208,6 +1231,7 @@ html[data-mobile="1"] .map-domain-filters{padding:8px 10px!important;}
       Entrer
     </button>
     <div id="betaPassError" style="display:none;font-size:11px;color:#F15BBE;text-align:center;">Mot de passe incorrect.</div>
+    <div onclick="backToLanding()" style="font-size:11.5px;color:#888;text-align:center;cursor:pointer;margin-top:4px;">← Retour</div>
   </div>
 </div>
 
@@ -1228,6 +1252,7 @@ html[data-mobile="1"] .map-domain-filters{padding:8px 10px!important;}
     <div id="authError" style="display:none;font-size:11.5px;color:#F15BBE;text-align:center;line-height:1.5;"></div>
     <div id="authMsg" style="display:none;font-size:11.5px;color:#00B2A9;text-align:center;line-height:1.5;background:rgba(0,178,169,.1);padding:10px;border-radius:8px;"></div>
     <div id="authToggle" onclick="toggleAuthMode()" style="font-size:11.5px;color:#aaa;text-align:center;cursor:pointer;margin-top:4px;">Déjà un compte ? <span style="color:#F15BBE;font-weight:600;">Se connecter</span></div>
+    <div onclick="backToLanding()" style="font-size:11.5px;color:#888;text-align:center;cursor:pointer;margin-top:2px;">← Retour à l'accueil</div>
   </div>
 </div>
 
@@ -1760,7 +1785,7 @@ html[data-mobile="1"] .map-domain-filters{padding:8px 10px!important;}
 
 <script>
 // ── Config beta ───────────────────────────────────────────────
-const BETA_PASSWORD = '';   // ← vide = pas de portail beta (l'auth par compte suffit). Remettre une valeur pour réactiver.
+const BETA_PASSWORD = 'dig2026';   // ← mot de passe d'accès en mode local (option "Entrer avec un mot de passe")
 const OMDB_KEY = 'b4c79a5a';       // ← clé OMDB (visible côté client, à remplacer par un proxy si nécessaire)
 const GOOGLE_BOOKS_KEY = '';       // ← optionnel
 const RAWG_KEY = '';               // ← clé RAWG pour jeux vidéo (gratuite sur rawg.io/apidocs)
@@ -4584,8 +4609,8 @@ function obNext(){
     if(!name){document.getElementById('obName').style.borderColor='var(--pink)';return;}
     obData.name=name;
     obData.handle=document.getElementById('obHandle').value.trim()||name.toLowerCase().replace(/\s+/g,'_');
-    // Exiger au moins une vérification (email OU phone)
-    if(!obData.emailVerified&&!obData.phoneVerified){
+    // Exiger au moins une vérification (email OU phone) — sauf en mode local (mot de passe)
+    if(!localMode && !obData.emailVerified && !obData.phoneVerified){
       const errEl=document.getElementById('obVerifyError');
       if(errEl){errEl.textContent='Vérifie au moins un email ou un numéro de téléphone pour continuer.';errEl.style.display='block';}
       return;
@@ -4625,7 +4650,7 @@ function checkBetaPass(){
   if(inp.value===BETA_PASSWORD){
     sessionStorage.setItem('beta_ok','1');
     document.getElementById('betaGate').style.display='none';
-    initApp();
+    enterLocalMode();
   } else {
     if(err){err.style.display='block';}
     inp.value='';inp.focus();
@@ -4634,12 +4659,12 @@ function checkBetaPass(){
 
 // ── Authentification Supabase (email + mot de passe) ──────────
 let authMode='signup';
+let localMode=false; // true = entré via mot de passe (sans backend)
 function showAuth(){ const g=document.getElementById('authGate'); if(g) g.style.display='flex'; }
 function hideAuth(){ const g=document.getElementById('authGate'); if(g) g.style.display='none'; }
 function _authError(t){ const e=document.getElementById('authError'); if(e){ e.style.display=t?'block':'none'; e.textContent=t||''; } }
 function _authMsg(t){ const e=document.getElementById('authMsg'); if(e){ e.style.display=t?'block':'none'; e.textContent=t||''; } }
-function toggleAuthMode(){
-  authMode = authMode==='signup'?'login':'signup';
+function setAuthLabels(){
   const isSignup=authMode==='signup';
   document.getElementById('authTitle').textContent = isSignup?'Crée ton compte':'Content de te revoir 👋';
   document.getElementById('authSubmit').textContent = isSignup?'Créer mon compte':'Se connecter';
@@ -4648,6 +4673,35 @@ function toggleAuthMode(){
     : 'Pas encore de compte ? <span style="color:#F15BBE;font-weight:600;">En créer un</span>';
   const p=document.getElementById('authPass'); if(p) p.setAttribute('autocomplete', isSignup?'new-password':'current-password');
   _authError(''); _authMsg('');
+}
+function toggleAuthMode(){
+  authMode = authMode==='signup'?'login':'signup';
+  setAuthLabels();
+}
+
+// ── Écran d'accueil (3 choix) ──
+function showLanding(){ const g=document.getElementById('landingGate'); if(g) g.style.display='flex'; }
+function hideLanding(){ const g=document.getElementById('landingGate'); if(g) g.style.display='none'; }
+function chooseAuth(mode){
+  hideLanding();
+  document.getElementById('betaGate').style.display='none';
+  authMode = (mode==='login'||mode==='signup')?mode:'signup';
+  setAuthLabels();
+  const em=document.getElementById('authEmail'); if(em) em.value='';
+  const pw=document.getElementById('authPass'); if(pw) pw.value='';
+  showAuth();
+}
+function choosePassword(){
+  hideLanding();
+  hideAuth();
+  const g=document.getElementById('betaGate'); if(g) g.style.display='flex';
+  const i=document.getElementById('betaPassInput'); if(i){ i.value=''; i.focus(); }
+}
+function backToLanding(){
+  hideAuth();
+  const g=document.getElementById('betaGate'); if(g) g.style.display='none';
+  _authError(''); _authMsg('');
+  showLanding();
 }
 function _traduireAuthError(m){
   m=(m||'').toLowerCase();
@@ -4717,29 +4771,31 @@ async function logout(){
   location.reload();
 }
 
+// Entrée en mode local (option mot de passe, sans backend)
+function enterLocalMode(){
+  localMode=true;
+  if(USER_PROFILE){ applyProfileToUI(); startApp(); } else { showOnboarding(); }
+}
+
 async function initApp(){
   applyMobileLayout();
   loadFromStorage();
+  // Déjà connecté via un compte Supabase ?
   if(sb){
     try{
       const {data:{session}}=await sb.auth.getSession();
       if(session){ await onAuthed(session); return; }
     }catch(e){ console.warn('getSession:',e.message); }
-    authMode='signup'; toggleAuthMode(); toggleAuthMode(); // initialise les libellés
-    showAuth();
-    return;
   }
-  // Fallback sans backend (ancien comportement local)
-  if(!USER_PROFILE){ showOnboarding(); } else { applyProfileToUI(); startApp(); }
+  // Déjà entré en mode local (mot de passe) avec un profil ?
+  if(sessionStorage.getItem('beta_ok')==='1' && USER_PROFILE){ applyProfileToUI(); startApp(); return; }
+  // Sinon : écran d'accueil à 3 choix
+  showLanding();
 }
 
 document.addEventListener("DOMContentLoaded", ()=>{
   window.addEventListener('resize', applyMobileLayout);
-  if(BETA_PASSWORD && sessionStorage.getItem('beta_ok')!=='1'){
-    document.getElementById('betaGate').style.display='flex';
-  } else {
-    initApp();
-  }
+  initApp();
 });
 
 // ── Friends data ──
