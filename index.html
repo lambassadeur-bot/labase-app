@@ -2578,6 +2578,57 @@ function goHome(){
   renderHome();
 }
 
+// Pool de recommandations « top du moment », étiqueté par type
+const TOP_PICKS=[
+  {type:'manga',emoji:'📚',title:'Chainsaw Man',creator:'Tatsuki Fujimoto',year:'2019',reason:'Shonen subversif, énergie brute',heat:99},
+  {type:'manga',emoji:'📚',title:'Berserk',creator:'Kentaro Miura',year:'1990',reason:'Le dark fantasy par excellence',heat:97},
+  {type:'manga',emoji:'📚',title:'Vagabond',creator:'Takehiko Inoue',year:'1998',reason:'Art somptueux, récit de vie',heat:94},
+  {type:'vinyl',emoji:'🎵',title:'Dummy',creator:'Portishead',year:'1994',reason:'Trip-hop mélancolique intemporel',heat:91},
+  {type:'vinyl',emoji:'🎵',title:'Discovery',creator:'Daft Punk',year:'2001',reason:'French touch culte',heat:88},
+  {type:'cd',emoji:'💿',title:'OK Computer',creator:'Radiohead',year:'1997',reason:'Rock qui a redéfini une époque',heat:90},
+  {type:'cd',emoji:'💿',title:'Kind of Blue',creator:'Miles Davis',year:'1959',reason:'L\'album de jazz parfait',heat:85},
+  {type:'book',emoji:'📖',title:'Dune',creator:'Frank Herbert',year:'1965',reason:'SF épique et philosophique',heat:92},
+  {type:'book',emoji:'📖',title:'Piranesi',creator:'Susanna Clarke',year:'2020',reason:'Court, dense, déroutant',heat:84},
+  {type:'game',emoji:'🎮',title:'Elden Ring',creator:'FromSoftware',year:'2022',reason:'Masterpiece du RPG open world',heat:96},
+  {type:'game',emoji:'🎮',title:'Balatro',creator:'LocalThunk',year:'2024',reason:'Roguelike poker addictif',heat:93},
+  {type:'game',emoji:'🎮',title:'Hollow Knight',creator:'Team Cherry',year:'2017',reason:'Metroidvania poétique',heat:89},
+  {type:'dvd',emoji:'🎬',title:'Parasite',creator:'Bong Joon-ho',year:'2019',reason:'Palme d\'or, thriller social parfait',heat:95},
+  {type:'dvd',emoji:'🎬',title:'Perfect Blue',creator:'Satoshi Kon',year:'1997',reason:'Thriller psychologique animé',heat:82},
+  {type:'series',emoji:'📺',title:'Severance S2',creator:'Ben Stiller',year:'2025',reason:'Kafkaïen et hypnotique',heat:94},
+  {type:'series',emoji:'📺',title:'Arcane',creator:'Fortiche',year:'2021',reason:'Animation à couper le souffle',heat:90},
+  {type:'boardgame',emoji:'♟',title:'Wingspan',creator:'Elizabeth Hargrave',year:'2019',reason:'Élégant et accessible',heat:89},
+  {type:'boardgame',emoji:'♟',title:'Gloomhaven',creator:'Isaac Childres',year:'2017',reason:'Campagne légendaire',heat:86},
+  {type:'collect',emoji:'🪙',title:'Pokémon 151',creator:'The Pokémon Company',year:'2023',reason:'Set nostalgie ultra-prisé',heat:87},
+  {type:'collect',emoji:'🪙',title:'Funko Pop! Batman',creator:'Funko',year:'2024',reason:'Pièce iconique de collection',heat:75},
+];
+function topPicksHtml(){
+  let types=(USER_PROFILE&&Array.isArray(USER_PROFILE.types)&&USER_PROFILE.types.length)?USER_PROFILE.types:null;
+  let picks=types?TOP_PICKS.filter(p=>types.includes(p.type)):TOP_PICKS.slice();
+  if(!picks.length) picks=TOP_PICKS.slice();
+  picks=picks.sort((a,b)=>b.heat-a.heat).slice(0,6);
+  return `
+    <div class="gb gb-fade" style="border-radius:14px;margin-bottom:10px;">
+      <div class="gb-inner" style="padding:12px 14px;">
+        <div class="home-section-header" style="margin-bottom:10px;">
+          <div class="home-section-title">🔥 Top du moment ${types?'pour toi':''}</div>
+          <div class="home-section-link" onclick="showSuggestions(document.getElementById('sugNavItem'))">Voir tout ›</div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:7px;">
+          ${picks.map(t=>`
+            <div class="home-feed-item" style="align-items:center;">
+              <div style="width:34px;height:34px;border-radius:8px;background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0;">${t.emoji}</div>
+              <div style="flex:1;min-width:0;">
+                <div class="feed-text" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"><strong>${t.title}</strong></div>
+                <div class="feed-time" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${t.creator} · ${t.reason}</div>
+              </div>
+              <button class="sug-card-btn" style="flex-shrink:0;" onclick="addSugToWish('${t.title.replace(/'/g,"\\'")}','${t.type}','${t.emoji}',this)">♡</button>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    </div>`;
+}
+
 function renderHome(){
   const hour=new Date().getHours();
   const greeting=hour<6?'Bonne nuit':hour<12?'Bonjour':hour<18?'Bonjour':hour<22?'Bonsoir':'Bonne nuit';
@@ -2606,6 +2657,7 @@ function renderHome(){
             </button>
           </div>
         </div>
+        ${topPicksHtml()}
         <div class="gb gb-fade" style="border-radius:14px;margin-bottom:10px;">
           <div class="gb-inner" style="padding:14px 16px;">
             <div class="home-section-header" style="margin-bottom:10px;">
@@ -2720,6 +2772,9 @@ function renderHome(){
           </div>
         </div>
       </div>`:''}
+
+      <!-- Top du moment (personnalisé selon les types choisis) -->
+      ${topPicksHtml()}
 
       <!-- Commu -->
       <div class="gb gb-fade" style="border-radius:14px;margin-bottom:10px;">
@@ -4434,7 +4489,7 @@ const ONBOARDING_TYPES=[
   {id:'boardgame',emoji:'♟',label:'Jeux de société'},
 ];
 let obStep=1;
-let obData={name:'',handle:'',color:'#00B2A9',types:[],email:'',phone:'',emailVerified:false,phoneVerified:false};
+let obData={name:'',handle:'',color:'#00B2A9',types:[],avatarImg:null,email:'',phone:'',emailVerified:false,phoneVerified:false};
 const obColors=['#00B2A9','#F15BBE','#EF9F27','#7C9EE0','#5DCAA5','#AFA9EC'];
 function showOnboarding(){document.getElementById('onboardingOverlay').style.display='flex';renderObStep();}
 function closeOnboarding(){document.getElementById('onboardingOverlay').style.display='none';}
@@ -4448,50 +4503,23 @@ function renderObStep(){
       <div class="ob-sub">Crée ton profil en 3 étapes</div>
       <div class="ob-progress-wrap"><div class="ob-progress-fill" style="width:${pct}%"></div></div>
       <div style="display:flex;justify-content:center;margin-bottom:20px;flex-direction:column;align-items:center;gap:10px;">
-        <div class="ob-avatar" id="obAvPreview" style="background:${obData.color};">${obData.name?obData.name[0].toUpperCase():'?'}</div>
-        <div style="display:flex;gap:6px;">${obColors.map(c=>`<div onclick="setObColor('${c}')" style="width:20px;height:20px;border-radius:50%;background:${c};cursor:pointer;border:2.5px solid ${obData.color===c?'var(--text1)':'transparent'};"></div>`).join('')}</div>
+        <div class="ob-avatar" id="obAvPreview" style="${obData.avatarImg?`background:center/cover no-repeat url('${obData.avatarImg}');`:`background:${obData.color};`}">${obData.avatarImg?'':(obData.name?obData.name[0].toUpperCase():'?')}</div>
+        <div style="display:flex;gap:6px;">${obColors.map(c=>`<div onclick="setObColor('${c}')" style="width:20px;height:20px;border-radius:50%;background:${c};cursor:pointer;border:2.5px solid ${(!obData.avatarImg&&obData.color===c)?'var(--text1)':'transparent'};"></div>`).join('')}</div>
+        <input type="file" id="obPhotoInput" accept="image/*" style="display:none;" onchange="onObPhoto(this)" />
+        <div style="display:flex;gap:12px;align-items:center;">
+          <button type="button" onclick="document.getElementById('obPhotoInput').click()" style="padding:6px 12px;border-radius:8px;border:.5px solid var(--border);background:var(--bg2);color:var(--text2);font-size:11px;cursor:pointer;">📷 ${obData.avatarImg?'Changer la photo':'Importer une photo'}</button>
+          ${obData.avatarImg?`<span onclick="removeObPhoto()" style="font-size:11px;color:var(--pink);cursor:pointer;">Retirer</span>`:''}
+        </div>
       </div>
       <div class="ob-field-label">Ton prénom ou surnom</div>
-      <input class="ob-input" id="obName" placeholder="Jules, MangaKing, Vinyliste..." value="${obData.name}" oninput="obData.name=this.value;const el=document.getElementById('obAvPreview');if(el)el.textContent=this.value?this.value[0].toUpperCase():'?';" />
+      <input class="ob-input" id="obName" placeholder="Jules, MangaKing, Vinyliste..." value="${obData.name}" oninput="obData.name=this.value;const el=document.getElementById('obAvPreview');if(el&&!obData.avatarImg)el.textContent=this.value?this.value[0].toUpperCase():'?';" />
       <div class="ob-field-label" style="margin-top:12px;">Ton pseudo</div>
       <div style="position:relative;">
         <span style="position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--text3);font-size:12px;pointer-events:none;">@</span>
         <input class="ob-input" id="obHandle" style="padding-left:24px;" placeholder="jules_d, manganiac42..." value="${obData.handle}" oninput="obData.handle=this.value.toLowerCase().replace(/[^a-z0-9_]/g,'')" />
       </div>
 
-      <div class="ob-field-label" style="margin-top:14px;">Email</div>
-      <div style="display:flex;gap:6px;">
-        <input class="ob-input" id="obEmail" type="email" placeholder="ton@email.com" value="${obData.email}" oninput="obData.email=this.value;obData.emailVerified=false;updateObVerifyButtons()" style="flex:1;" />
-        <button id="obEmailVerify" onclick="verifyEmail()" style="padding:0 12px;border-radius:9px;border:.5px solid var(--border);background:var(--bg2);color:var(--text2);font-size:11px;cursor:pointer;white-space:nowrap;">${obData.emailVerified?'✓ Vérifié':'Vérifier'}</button>
-      </div>
-      <div id="obEmailCodeZone" style="display:none;margin-top:6px;">
-        <div id="obEmailCodeMsg" style="font-size:12px;color:#00B2A9;font-weight:600;margin-bottom:6px;padding:8px 10px;background:rgba(0,178,169,.1);border-radius:8px;"></div>
-        <div style="display:flex;gap:6px;">
-          <input class="ob-input" id="obEmailCodeInput" type="text" inputmode="numeric" placeholder="Code à 6 chiffres" style="flex:1;letter-spacing:4px;" maxlength="6" onkeydown="if(event.key==='Enter'){event.preventDefault();confirmEmailCode();}" />
-          <button type="button" onclick="confirmEmailCode()" style="padding:0 12px;border-radius:9px;border:.5px solid var(--border);background:var(--bg2);color:var(--text2);font-size:11px;cursor:pointer;white-space:nowrap;">Confirmer</button>
-        </div>
-      </div>
-
-      <div class="ob-field-label" style="margin-top:12px;">Numéro de téléphone</div>
-      <div style="display:flex;gap:6px;">
-        <input class="ob-input" id="obPhone" type="tel" placeholder="+33 6 ..." value="${obData.phone}" oninput="obData.phone=this.value;obData.phoneVerified=false;updateObVerifyButtons()" style="flex:1;" />
-        <button id="obPhoneVerify" onclick="verifyPhone()" style="padding:0 12px;border-radius:9px;border:.5px solid var(--border);background:var(--bg2);color:var(--text2);font-size:11px;cursor:pointer;white-space:nowrap;">${obData.phoneVerified?'✓ Vérifié':'Vérifier'}</button>
-      </div>
-      <div id="obPhoneCodeZone" style="display:none;margin-top:6px;">
-        <div id="obPhoneCodeMsg" style="font-size:12px;color:#00B2A9;font-weight:600;margin-bottom:6px;padding:8px 10px;background:rgba(0,178,169,.1);border-radius:8px;"></div>
-        <div style="display:flex;gap:6px;">
-          <input class="ob-input" id="obPhoneCodeInput" type="text" inputmode="numeric" placeholder="Code à 6 chiffres" style="flex:1;letter-spacing:4px;" maxlength="6" onkeydown="if(event.key==='Enter'){event.preventDefault();confirmPhoneCode();}" />
-          <button type="button" onclick="confirmPhoneCode()" style="padding:0 12px;border-radius:9px;border:.5px solid var(--border);background:var(--bg2);color:var(--text2);font-size:11px;cursor:pointer;white-space:nowrap;">Confirmer</button>
-        </div>
-      </div>
-
-      <div id="obVerifyError" style="display:none;font-size:11px;color:var(--pink);margin-top:6px;text-align:center;"></div>
-
-      <div style="font-size:10px;color:var(--text3);margin-top:8px;line-height:1.5;text-align:center;">
-        🔒 Vérification anti-bot. Tes données restent privées.
-      </div>
-
-      <button class="ob-btn" onclick="obNext()">Continuer →</button>
+      <button class="ob-btn" style="margin-top:18px;" onclick="obNext()">Continuer →</button>
     `;
   } else if(obStep===2){
     inner.innerHTML=`
@@ -4510,7 +4538,7 @@ function renderObStep(){
       <div class="ob-sub">Voici ton profil DIG</div>
       <div class="ob-progress-wrap"><div class="ob-progress-fill" style="width:100%"></div></div>
       <div style="display:flex;flex-direction:column;align-items:center;gap:6px;margin:20px 0 24px;">
-        <div class="ob-avatar" style="width:64px;height:64px;font-size:22px;font-weight:700;background:${obData.color};">${initials}</div>
+        <div class="ob-avatar" style="width:64px;height:64px;font-size:22px;font-weight:700;${obData.avatarImg?`background:center/cover no-repeat url('${obData.avatarImg}');`:`background:${obData.color};`}">${obData.avatarImg?'':initials}</div>
         <div style="font-size:16px;font-weight:500;color:var(--text1);margin-top:2px;">${obData.name}</div>
         <div style="font-size:12px;color:var(--text3);">@${obData.handle||obData.name.toLowerCase()}</div>
         <div style="display:flex;flex-wrap:wrap;gap:5px;justify-content:center;margin-top:8px;">${obData.types.map(id=>{const t=ONBOARDING_TYPES.find(t=>t.id===id);return t?`<span style="padding:4px 11px;border-radius:12px;font-size:10px;background:var(--nav-active-bg);color:var(--nav-active-c);">${t.emoji} ${t.label}</span>`:''}).join('')}</div>
@@ -4519,7 +4547,30 @@ function renderObStep(){
     `;
   }
 }
-function setObColor(c){obData.color=c;renderObStep();}
+function setObColor(c){obData.color=c;obData.avatarImg=null;renderObStep();}
+
+// Photo de profil perso : on lit, recadre en carré et compresse (~256px)
+function onObPhoto(input){
+  const f=input.files&&input.files[0];
+  if(!f) return;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    const img=new Image();
+    img.onload=()=>{
+      const size=256, canvas=document.createElement('canvas');
+      canvas.width=size; canvas.height=size;
+      const ctx=canvas.getContext('2d');
+      const min=Math.min(img.width,img.height);
+      const sx=(img.width-min)/2, sy=(img.height-min)/2;
+      ctx.drawImage(img,sx,sy,min,min,0,0,size,size);
+      obData.avatarImg=canvas.toDataURL('image/jpeg',0.85);
+      renderObStep();
+    };
+    img.src=e.target.result;
+  };
+  reader.readAsDataURL(f);
+}
+function removeObPhoto(){ obData.avatarImg=null; renderObStep(); }
 
 function updateObVerifyButtons(){
   const eb=document.getElementById('obEmailVerify');
@@ -4609,12 +4660,6 @@ function obNext(){
     if(!name){document.getElementById('obName').style.borderColor='var(--pink)';return;}
     obData.name=name;
     obData.handle=document.getElementById('obHandle').value.trim()||name.toLowerCase().replace(/\s+/g,'_');
-    // Exiger au moins une vérification (email OU phone) — sauf en mode local (mot de passe)
-    if(!localMode && !obData.emailVerified && !obData.phoneVerified){
-      const errEl=document.getElementById('obVerifyError');
-      if(errEl){errEl.textContent='Vérifie au moins un email ou un numéro de téléphone pour continuer.';errEl.style.display='block';}
-      return;
-    }
   }
   obStep++;renderObStep();
 }
@@ -4631,12 +4676,19 @@ function applyProfileToUI(){
   if(avHandle) avHandle.textContent='@'+USER_PROFILE.handle;
   if(menuName) menuName.textContent=USER_PROFILE.name;
   if(menuEmail) menuEmail.textContent='@'+USER_PROFILE.handle;
-  if(av){av.textContent=USER_PROFILE.initials;av.style.background=USER_PROFILE.color;}
-  if(menuAv){menuAv.textContent=USER_PROFILE.initials;menuAv.style.background=USER_PROFILE.color;}
+  const img=USER_PROFILE.avatarImg;
+  if(av){
+    if(img){ av.textContent=''; av.style.background=`center/cover no-repeat url('${img}')`; }
+    else { av.textContent=USER_PROFILE.initials; av.style.background=USER_PROFILE.color; }
+  }
+  if(menuAv){
+    if(img){ menuAv.textContent=''; menuAv.style.background=`center/cover no-repeat url('${img}')`; }
+    else { menuAv.textContent=USER_PROFILE.initials; menuAv.style.background=USER_PROFILE.color; }
+  }
 }
 
 async function finishOnboarding(){
-  USER_PROFILE={name:obData.name,handle:obData.handle||obData.name.toLowerCase().replace(/\s+/g,'_'),color:obData.color,initials:obData.name.slice(0,2).toUpperCase(),types:obData.types};
+  USER_PROFILE={name:obData.name,handle:obData.handle||obData.name.toLowerCase().replace(/\s+/g,'_'),color:obData.color,initials:obData.name.slice(0,2).toUpperCase(),types:obData.types,avatarImg:obData.avatarImg||null};
   applyProfileToUI();
   await saveCloudProfile();
   closeOnboarding();startApp();saveToStorage();
