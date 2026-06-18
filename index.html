@@ -284,6 +284,12 @@ html[data-mobile="1"] .ob-btn{min-height:48px!important;}
 /* Filtres map scrollables : indiquer le scroll horizontal sans casser */
 html[data-mobile="1"] .map-domain-filters{padding:8px 10px!important;}
 
+/* Détail d'une œuvre en plein écran sur mobile (le panneau droit est sinon caché) */
+html[data-mobile="1"] .panel-wrapper.mobile-open{display:flex!important;position:fixed!important;inset:0!important;width:100%!important;height:100%!important;z-index:600;background:var(--bg);padding:10px;flex-direction:column;}
+html[data-mobile="1"] .panel-wrapper.mobile-open .panel-col{width:100%!important;opacity:1!important;transform:none!important;flex:1;min-height:0;}
+html[data-mobile="1"] .panel-wrapper.mobile-open #panelMobileClose{display:block!important;}
+html[data-mobile="1"] .panel-wrapper.mobile-open .panel-toggle,html[data-mobile="1"] .panel-wrapper.mobile-open .panel-strip{display:none!important;}
+
 @media(max-width:1100px){
   .sidebar-wrap{width:185px!important;}
   .panel-wrapper{width:210px!important;}
@@ -441,13 +447,13 @@ html[data-mobile="1"] .map-domain-filters{padding:8px 10px!important;}
 .series-badge{position:absolute;bottom:6px;left:6px;background:rgba(0,0,0,0.55);color:#FFE566;font-size:8px;font-weight:600;padding:2px 7px;border-radius:8px;font-family:monospace;}
 
 /* ── Panel ── */
-.panel-wrapper{position:relative;display:flex;flex-shrink:0;transition:width .28s cubic-bezier(.4,0,.2,1);width:274px;}
+.panel-wrapper{position:relative;display:flex;flex-shrink:0;transition:width .28s cubic-bezier(.4,0,.2,1);width:255px;}
 .panel-wrapper.collapsed{width:22px;}
 .panel-toggle{position:absolute;left:-18px;top:50%;transform:translateY(-50%);z-index:5;width:18px;height:48px;background:var(--panel-toggle-bg);border:.5px solid var(--border2);border-right:none;border-radius:7px 0 0 7px;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--text3);font-size:10px;user-select:none;transition:background .15s;}
 .panel-toggle:hover{background:var(--bg2);}
 .toggle-arrow{display:inline-block;transition:transform .28s cubic-bezier(.4,0,.2,1);line-height:1;}
 .panel-wrapper.collapsed .toggle-arrow{transform:rotate(180deg);}
-.panel-col{width:274px;display:flex;flex-direction:column;gap:5px;flex-shrink:0;transition:opacity .2s,transform .28s cubic-bezier(.4,0,.2,1);}
+.panel-col{width:255px;display:flex;flex-direction:column;gap:5px;flex-shrink:0;transition:opacity .2s,transform .28s cubic-bezier(.4,0,.2,1);}
 .panel-wrapper.collapsed .panel-col{opacity:0;pointer-events:none;transform:translateX(12px);}
 .panel-strip{position:absolute;left:0;top:0;bottom:0;width:8px;background:var(--border);opacity:0;transition:opacity .2s;border-left:.5px solid var(--border2);}
 .panel-wrapper.collapsed .panel-strip{opacity:1;}
@@ -1563,10 +1569,10 @@ html[data-mobile="1"] .map-domain-filters{padding:8px 10px!important;}
         <div class="nav">
           <div class="nav-label">Collections</div>
           <div class="nav-item active" onclick="filterBy('all',this)"><div class="nav-icon">◈</div>Tout<span class="nav-count" id="nc-all">0</span></div>
-          <div class="nav-item" onclick="filterBy('manga',this)"><div class="nav-icon">📚</div>Mangas<span class="nav-count" id="nc-manga">0</span></div>
-          <div class="nav-item" onclick="filterBy('vinyl',this)"><div class="nav-icon">🎵</div>Vinyles<span class="nav-count" id="nc-vinyl">0</span></div>
-          <div class="nav-item" onclick="filterBy('cd',this)"><div class="nav-icon">💿</div>CDs<span class="nav-count" id="nc-cd">0</span></div>
-          <div class="nav-item" onclick="filterBy('book',this)"><div class="nav-icon">📖</div>Livres<span class="nav-count" id="nc-book">0</span></div>
+          <div class="nav-item" id="navcat-manga" onclick="filterBy('manga',this)"><div class="nav-icon">📚</div>Mangas<span class="nav-count" id="nc-manga">0</span></div>
+          <div class="nav-item" id="navcat-vinyl" onclick="filterBy('vinyl',this)"><div class="nav-icon">🎵</div>Vinyles<span class="nav-count" id="nc-vinyl">0</span></div>
+          <div class="nav-item" id="navcat-cd" onclick="filterBy('cd',this)"><div class="nav-icon">💿</div>CDs<span class="nav-count" id="nc-cd">0</span></div>
+          <div class="nav-item" id="navcat-book" onclick="filterBy('book',this)"><div class="nav-icon">📖</div>Livres<span class="nav-count" id="nc-book">0</span></div>
 
           <!-- Jeux vidéo avec sous-familles -->
           <div class="nav-item" id="gameParent" onclick="toggleGamePlatforms(this)">
@@ -1581,10 +1587,10 @@ html[data-mobile="1"] .map-domain-filters{padding:8px 10px!important;}
             </div>
           </div>
 
-          <div class="nav-item" onclick="filterBy('dvd',this)"><div class="nav-icon">🎬</div>DVDs<span class="nav-count" id="nc-dvd">0</span></div>
-          <div class="nav-item" onclick="filterBy('series',this)"><div class="nav-icon">📺</div>Séries<span class="nav-count" id="nc-series">0</span></div>
-          <div class="nav-item" onclick="filterBy('collect',this)"><div class="nav-icon">🪙</div>Collections<span class="nav-count" id="nc-collect">0</span></div>
-          <div class="nav-item" onclick="filterBy('boardgame',this)"><div class="nav-icon">♟</div>Jeux de société<span class="nav-count" id="nc-boardgame">0</span></div>
+          <div class="nav-item" id="navcat-dvd" onclick="filterBy('dvd',this)"><div class="nav-icon">🎬</div>DVDs<span class="nav-count" id="nc-dvd">0</span></div>
+          <div class="nav-item" id="navcat-series" onclick="filterBy('series',this)"><div class="nav-icon">📺</div>Séries<span class="nav-count" id="nc-series">0</span></div>
+          <div class="nav-item" id="navcat-collect" onclick="filterBy('collect',this)"><div class="nav-icon">🪙</div>Collections<span class="nav-count" id="nc-collect">0</span></div>
+          <div class="nav-item" id="navcat-boardgame" onclick="filterBy('boardgame',this)"><div class="nav-icon">♟</div>Jeux de société<span class="nav-count" id="nc-boardgame">0</span></div>
           <div class="nav-divider"></div>
           <div class="nav-label">Moi</div>
           <div class="nav-item" style="color:var(--wish-c)" onclick="filterBy('wish',this)"><div class="nav-icon">♡</div>Wishlist<span class="nav-count" id="nc-wish" style="background:var(--wish-bg);color:var(--wish-c)">0</span></div>
@@ -1720,16 +1726,19 @@ html[data-mobile="1"] .map-domain-filters{padding:8px 10px!important;}
       </div>
     </div>
     <div class="gb filterbar-gb" id="filterBar" style="flex-shrink:0;display:none;">
-      <div class="gb-inner" style="display:flex;align-items:center;gap:8px;flex-wrap:nowrap;">
-        <select id="statusFilter" onchange="filterStatus(this.value, this)" style="padding:6px 10px;border-radius:8px;border:.5px solid var(--border);background:var(--bg2);color:var(--text1);font-size:11px;cursor:pointer;font-family:inherit;outline:none;flex-shrink:0;">
-          <option value="all">📋 Tout</option>
-          <option value="done">✓ Lu / joué</option>
-          <option value="wip">⏳ En cours</option>
-          <option value="todo">○ À commencer</option>
-          <option value="wish">♡ Wishlist</option>
-        </select>
-        <div style="flex:1;"></div>
-        <button onclick="openModal()" style="padding:6px 13px;border-radius:8px;background:linear-gradient(135deg,#00B2A9,#F15BBE);color:#fff;border:none;font-size:11px;font-weight:500;cursor:pointer;flex-shrink:0;white-space:nowrap;">+ Ajouter une œuvre</button>
+      <div class="gb-inner" style="display:flex;flex-direction:column;gap:8px;">
+        <div id="filterCatName" style="font-size:14px;font-weight:600;color:var(--text1);">Toute ma collection</div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <select id="statusFilter" onchange="filterStatus(this.value, this)" style="padding:6px 10px;border-radius:8px;border:.5px solid var(--border);background:var(--bg2);color:var(--text1);font-size:11px;cursor:pointer;font-family:inherit;outline:none;flex-shrink:0;">
+            <option value="all">📋 Tout</option>
+            <option value="done">✓ Lu / joué</option>
+            <option value="wip">⏳ En cours</option>
+            <option value="todo">○ À commencer</option>
+            <option value="wish">♡ Wishlist</option>
+          </select>
+          <div style="flex:1;"></div>
+          <button onclick="openModal()" title="Ajouter une œuvre" aria-label="Ajouter une œuvre" style="width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,#00B2A9,#F15BBE);color:#fff;border:none;font-size:20px;font-weight:400;line-height:1;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;">+</button>
+        </div>
       </div>
     </div>
     <!-- Collection grid -->
@@ -1798,6 +1807,7 @@ html[data-mobile="1"] .map-domain-filters{padding:8px 10px!important;}
   <!-- ── PANEL ── -->
   <div class="panel-wrapper" id="panelWrapper">
     <button class="panel-toggle" onclick="togglePanel()"><span class="toggle-arrow" id="tArrow">‹</span></button>
+    <button id="panelMobileClose" onclick="closeMobileDetail()" style="display:none;flex-shrink:0;margin-bottom:6px;padding:9px 14px;border-radius:9px;border:.5px solid var(--border);background:var(--bg2);color:var(--text1);font-size:13px;font-weight:500;cursor:pointer;align-self:flex-start;">‹ Retour</button>
     <div class="panel-strip"></div>
     <div class="panel-col" id="panelCol">
       <div id="panelContent" style="display:contents"></div>
@@ -2491,11 +2501,17 @@ function selectItem(id){
   selectedId=id;
   renderGrid();
   renderPanel(id);
-  // Auto-ouvrir le panneau s'il est fermé
   const pw=document.getElementById('panelWrapper');
-  if(pw&&pw.classList.contains('collapsed')){
+  if(document.documentElement.getAttribute('data-mobile')==='1'){
+    // Mobile : ouvre le détail en plein écran
+    if(pw){ pw.classList.remove('collapsed'); pw.classList.add('mobile-open'); }
+  } else if(pw&&pw.classList.contains('collapsed')){
     togglePanel();
   }
+}
+function closeMobileDetail(){
+  const pw=document.getElementById('panelWrapper');
+  if(pw) pw.classList.remove('mobile-open');
 }
 
 function setStars(id,n){
@@ -2526,10 +2542,11 @@ function changeEp(id,delta){
   renderPanel(id);renderGrid();
 }
 
+const CAT_NAMES={all:'Toute ma collection',manga:'Mangas',vinyl:'Vinyles',cd:'CDs',book:'Livres',game:'Jeux vidéo',dvd:'DVDs',series:'Séries',collect:'Collections',boardgame:'Jeux de société',wish:'Ma wishlist'};
 function filterBy(type,el){
   activeFilter=type;
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
-  el.classList.add('active');
+  if(el) el.classList.add('active');
   inSugView=false; inSearchView=false; inHomeView=false;
   document.getElementById('homeView').style.display='none';
   document.getElementById('filterBar').style.display='';
@@ -2538,6 +2555,8 @@ function filterBy(type,el){
   document.getElementById('searchView').style.display='none';
   document.getElementById('sidebarSearch').value='';
   document.getElementById('searchClear').style.display='none';
+  const catEl=document.getElementById('filterCatName');
+  if(catEl) catEl.textContent=CAT_NAMES[type]||'Ma collection';
   renderGrid();
 }
 
@@ -4602,8 +4621,32 @@ function resetAllData(){
 let USER_PROFILE=null;
 function startApp(){
   try{const w=localStorage.getItem('dig_wallpaper');if(w){customWallpaper=w;}}catch(e){}
+  applySidebarCategories();
   renderGrid();updateNavCounts();renderPanel(selectedId);updateXP();goHome();
   setTimeout(applyWallpaper,100);
+}
+
+// Affiche dans la sidebar uniquement les catégories choisies à la création du profil
+function applySidebarCategories(){
+  const types=(USER_PROFILE&&Array.isArray(USER_PROFILE.types)&&USER_PROFILE.types.length)?USER_PROFILE.types:null;
+  if(!types) return; // aucun type défini → on montre tout
+  const show={
+    'navcat-manga':types.includes('manga'),
+    'navcat-vinyl':types.includes('vinyl'),
+    'navcat-cd':types.includes('cd')||types.includes('vinyl'),
+    'navcat-book':types.includes('book'),
+    'gameParent':types.includes('game'),
+    'navcat-dvd':types.includes('dvd'),
+    'navcat-series':types.includes('series'),
+    'navcat-collect':types.includes('collect'),
+    'navcat-boardgame':types.includes('boardgame'),
+  };
+  Object.entries(show).forEach(([id,visible])=>{
+    const el=document.getElementById(id);
+    if(el) el.style.display=visible?'':'none';
+  });
+  const gp=document.getElementById('gamePlatforms');
+  if(gp&&!types.includes('game')) gp.style.display='none';
 }
 // ── Onboarding ────────────────────────────────────────────────
 const ONBOARDING_TYPES=[
