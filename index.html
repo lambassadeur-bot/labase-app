@@ -1357,6 +1357,12 @@ html[data-mobile="1"] .panel-wrapper.mobile-open .panel-toggle,html[data-mobile=
             <div class="flabel">Nombre de tomes / épisodes</div>
             <input class="fi" id="manualTotal" type="number" min="1" max="500" value="10" style="width:100px" />
           </div>
+          <div id="manualExistingSeriesRow" style="display:none;margin-top:12px;">
+            <div class="flabel">Ou ranger dans une série existante</div>
+            <select class="fi" id="manualExistingSeries" style="width:100%;" onchange="onPickExistingSeries(this.value)">
+              <option value="">— Non, nouvelle entrée —</option>
+            </select>
+          </div>
         </div>
         <div class="form-row">
           <div class="flabel">Statut</div>
@@ -3302,6 +3308,28 @@ function openModal(){
   if(camBtn) camBtn.style.display='block';
   const stopBtn=document.getElementById('scanStopBtn');
   if(stopBtn) stopBtn.style.display='none';
+  populateSeriesSelect();
+}
+
+// Remplit la liste des séries existantes dans le formulaire d'ajout
+function populateSeriesSelect(){
+  const sel=document.getElementById('manualExistingSeries');
+  const row=document.getElementById('manualExistingSeriesRow');
+  const cb=document.getElementById('manualIsSeries'); if(cb) cb.disabled=false;
+  if(!sel||!row) return;
+  const series=ITEMS.filter(i=>i.series);
+  if(!series.length){ row.style.display='none'; sel.innerHTML='<option value="">— Non, nouvelle entrée —</option>'; return; }
+  row.style.display='block';
+  sel.innerHTML='<option value="">— Non, nouvelle entrée —</option>'+
+    series.map(s=>`<option value="${s.id}">${s.emoji} ${s.title} (${seriesReadCount(s)}/${s.total})</option>`).join('');
+}
+
+// Si on choisit une série existante, on désactive l'option "en faire une série"
+function onPickExistingSeries(val){
+  const cb=document.getElementById('manualIsSeries');
+  const cnt=document.getElementById('manualSeriesCount');
+  if(val){ if(cb){cb.checked=false;cb.disabled=true;} if(cnt) cnt.style.display='none'; }
+  else { if(cb) cb.disabled=false; }
 }
 function closeModal(){document.getElementById('addModal').classList.remove('on');}
 
@@ -3886,6 +3914,25 @@ function submitManualAdd(){
   const statusEl=document.querySelectorAll('.form-row .type-grid')[1]?.querySelector('.tbtn.active');
   const status=statusEl?statusMap[statusEl.textContent.trim()]||'todo':'todo';
   const prevKeys=getQuestKeys();
+
+  // Ajout dans une série existante (dossier) ?
+  const targetSeriesId=document.getElementById('manualExistingSeries')?.value;
+  if(targetSeriesId){
+    const s=ITEMS.find(i=>String(i.id)===String(targetSeriesId));
+    if(s&&s.series){
+      if(!Array.isArray(s.elements)) s.elements=[];
+      s.elements.push({label:title,read:status==='done',stars:0,note:''});
+      s.total=s.elements.length;
+      const rc=seriesReadCount(s);
+      s.status = rc===0?'todo':(rc>=s.elements.length?'done':'wip');
+      renderGrid();updateXP();updateNavCounts();closeModal();
+      selectItem(s.id);
+      saveToStorage();
+      setTimeout(()=>checkQuestCompletions(prevKeys),400);
+      return;
+    }
+  }
+
   const isSeries=document.getElementById('manualIsSeries')?.checked;
   const base={id:Date.now(),type,emoji,title,meta:`${author||'—'} · ${year||'—'}`,stars:0,note:'',status,wish:false};
   if(isSeries){
