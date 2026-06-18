@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DIG — Seed 10 profils</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  body{font-family:system-ui,sans-serif;background:#0D0020;color:#eee;padding:24px;max-width:680px;margin:0 auto;}
+  h1{font-size:20px;background:linear-gradient(90deg,#00B2A9,#F15BBE);-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+  button{padding:12px 20px;border:none;border-radius:10px;background:linear-gradient(90deg,#00B2A9,#F15BBE);color:#fff;font-size:14px;font-weight:600;cursor:pointer;margin:12px 0;}
+  button:disabled{opacity:.5;cursor:default;}
+  #log{background:#160030;border-radius:10px;padding:14px;font-family:monospace;font-size:12px;line-height:1.7;white-space:pre-wrap;margin-top:16px;border:1px solid #333;min-height:120px;}
+  .ok{color:#5DCAA5;} .err{color:#F15BBE;} .info{color:#9aa;}
+</style>
+</head>
+<body>
+<h1>DIG — Création de 10 profils de test</h1>
+<p style="font-size:13px;color:#aaa;line-height:1.6;">
+  Cette page crée 10 comptes variés dans Supabase (profils + quelques œuvres) pour remplir la base réelle.<br>
+  Prérequis : projet Supabase actif + « Confirm email » désactivé.
+</p>
+<button id="run" onclick="seed()">Créer les 10 profils</button>
+<div id="log"></div>
+
+<script>
+const SUPABASE_URL = 'https://zczqvtjlkozcfjpojnnx.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpjenF2dGpsa296Y2ZqcG9qbm54Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAyMjc4MTQsImV4cCI6MjA5NTgwMzgxNH0.wkJORaQ6DbVvmua7tGtOv7-DFOJ_VgXs1ra2gGCyDn4';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+const PW = 'DigTest2026!';
+const PERSONAS = [
+  {email:'persona01@dig-personas.app', name:'Léo', handle:'leo_gamer', color:'#7C9EE0', types:['game','boardgame'],
+   items:[{type:'game',emoji:'🎮',title:'Elden Ring',meta:'FromSoftware · 2022',stars:5,status:'done'},{type:'game',emoji:'🎮',title:'Hollow Knight',meta:'Team Cherry · 2017',stars:5,status:'wip'},{type:'boardgame',emoji:'♟',title:'Catan',meta:'Klaus Teuber · 1995',stars:4,status:'done'}]},
+  {email:'persona02@dig-personas.app', name:'Mei', handle:'mei_manga', color:'#F15BBE', types:['manga','book'],
+   items:[{type:'manga',emoji:'📚',title:'Berserk',meta:'Kentaro Miura · 1990',stars:5,status:'wip'},{type:'manga',emoji:'📚',title:'Vinland Saga',meta:'Makoto Yukimura · 2005',stars:5,status:'done'},{type:'book',emoji:'📖',title:'Dune',meta:'Frank Herbert · 1965',stars:4,status:'done'}]},
+  {email:'persona03@dig-personas.app', name:'Theo', handle:'theo_vinyl', color:'#EF9F27', types:['vinyl'],
+   items:[{type:'vinyl',emoji:'🎵',title:'Dummy',meta:'Portishead · 1994',stars:5,status:'done'},{type:'vinyl',emoji:'🎵',title:'Discovery',meta:'Daft Punk · 2001',stars:5,status:'done'},{type:'cd',emoji:'💿',title:'OK Computer',meta:'Radiohead · 1997',stars:4,status:'done'}]},
+  {email:'persona04@dig-personas.app', name:'Camille', handle:'cam_cine', color:'#00B2A9', types:['dvd','series'],
+   items:[{type:'dvd',emoji:'🎬',title:'Parasite',meta:'Bong Joon-ho · 2019',stars:5,status:'done'},{type:'series',emoji:'📺',title:'Severance',meta:'Ben Stiller · 2022',stars:5,status:'wip'},{type:'dvd',emoji:'🎬',title:'Perfect Blue',meta:'Satoshi Kon · 1997',stars:4,status:'done'}]},
+  {email:'persona05@dig-personas.app', name:'Sami', handle:'sami_poly', color:'#5DCAA5', types:['manga','vinyl','game'],
+   items:[{type:'manga',emoji:'📚',title:'Chainsaw Man',meta:'Tatsuki Fujimoto · 2019',stars:5,status:'wip'},{type:'vinyl',emoji:'🎵',title:'Kind of Blue',meta:'Miles Davis · 1959',stars:5,status:'done'},{type:'game',emoji:'🎮',title:'Balatro',meta:'LocalThunk · 2024',stars:5,status:'wip'}]},
+  {email:'persona06@dig-personas.app', name:'Inès', handle:'ines_books', color:'#AFA9EC', types:['book'],
+   items:[{type:'book',emoji:'📖',title:'Piranesi',meta:'Susanna Clarke · 2020',stars:5,status:'done'},{type:'book',emoji:'📖',title:'1984',meta:'George Orwell · 1949',stars:4,status:'done'},{type:'book',emoji:'📖',title:'Orbital',meta:'Samantha Harvey · 2023',stars:4,status:'todo'}]},
+  {email:'persona07@dig-personas.app', name:'Noah', handle:'noah_series', color:'#D85A30', types:['series'],
+   items:[{type:'series',emoji:'📺',title:'Arcane',meta:'Fortiche · 2021',stars:5,status:'done'},{type:'series',emoji:'📺',title:'Breaking Bad',meta:'Vince Gilligan · 2008',stars:5,status:'done'}]},
+  {email:'persona08@dig-personas.app', name:'Lucie', handle:'lucie_bg', color:'#1D9E75', types:['boardgame'],
+   items:[{type:'boardgame',emoji:'♟',title:'Wingspan',meta:'Elizabeth Hargrave · 2019',stars:5,status:'done'},{type:'boardgame',emoji:'♟',title:'Gloomhaven',meta:'Isaac Childres · 2017',stars:4,status:'wip'}]},
+  {email:'persona09@dig-personas.app', name:'Karim', handle:'karim_mix', color:'#378ADD', types:['vinyl','dvd'],
+   items:[{type:'vinyl',emoji:'🎵',title:'Imaginal Disk',meta:'Magdalena Bay · 2024',stars:5,status:'done'},{type:'dvd',emoji:'🎬',title:'Akira',meta:'Katsuhiro Otomo · 1988',stars:5,status:'done'}]},
+  {email:'persona10@dig-personas.app', name:'Eva', handle:'eva_complete', color:'#D4537E', types:['manga','game','collect'],
+   items:[{type:'manga',emoji:'📚',title:'Dorohedoro',meta:'Q Hayashida · 2000',stars:5,status:'wip'},{type:'game',emoji:'🎮',title:'Outer Wilds',meta:'Mobius · 2019',stars:5,status:'done'},{type:'collect',emoji:'🪙',title:'Pokémon 151',meta:'TPC · 2023',stars:4,status:'done'}]},
+];
+
+const logEl = document.getElementById('log');
+function log(msg, cls='info'){ logEl.innerHTML += `<span class="${cls}">${msg}</span>\n`; logEl.scrollTop = logEl.scrollHeight; }
+
+async function seed(){
+  const btn = document.getElementById('run'); btn.disabled = true;
+  log('Démarrage...', 'info');
+  let ok=0, fail=0;
+  for(const p of PERSONAS){
+    try{
+      const { data, error } = await sb.auth.signUp({ email:p.email, password:PW });
+      if(error){
+        if((error.message||'').toLowerCase().includes('already')){ log(`• ${p.name} (${p.email}) — existe déjà, ignoré`, 'info'); }
+        else { log(`✗ ${p.name} — ${error.message}`, 'err'); fail++; }
+        continue;
+      }
+      const uid = data.user?.id || data.session?.user?.id;
+      if(!uid){ log(`✗ ${p.name} — pas de session (Confirm email encore actif ?)`, 'err'); fail++; continue; }
+      await new Promise(r=>setTimeout(r,400)); // laisse le trigger créer le profil
+      await sb.from('profiles').upsert({ id:uid, name:p.name, handle:p.handle, color:p.color, types:p.types });
+      for(const it of p.items){
+        await sb.from('items').insert({ user_id:uid, type:it.type, emoji:it.emoji, title:it.title, meta:it.meta, stars:it.stars||0, status:it.status||'todo', wish:false });
+      }
+      await sb.auth.signOut();
+      log(`✓ ${p.name} (@${p.handle}) — ${p.items.length} œuvres`, 'ok');
+      ok++;
+    }catch(e){ log(`✗ ${p.name} — ${e.message}`, 'err'); fail++; }
+  }
+  log(`\nTerminé : ${ok} créés, ${fail} échecs.`, ok>0?'ok':'err');
+  log('Tu peux supprimer cette page (seed.html) après usage.', 'info');
+  btn.disabled = false;
+}
+</script>
+</body>
+</html>
