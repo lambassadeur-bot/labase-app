@@ -4644,6 +4644,8 @@ function saveToStorage(){
     localStorage.setItem('dig_platforms', JSON.stringify(userPlatforms));
     localStorage.setItem('dig_spots', JSON.stringify(MAP_SPOTS));
   }catch(e){}
+  // Si connecté par compte, synchronise aussi la collection vers le cloud (débounce)
+  if(typeof scheduleCloudSync==='function') scheduleCloudSync();
 }
 
 function loadFromStorage(){
@@ -5011,18 +5013,46 @@ async function authSubmit(){
   }catch(e){ _authError("Erreur : "+e.message); }
   finally{ btn.disabled=false; btn.textContent=old; }
 }
+let currentUserId=null; // id du compte connecté (null en mode local/mot de passe)
 async function onAuthed(session){
   if(!session) return;
   hideAuth();
+  currentUserId=session.user.id;
   const prof=await loadCloudProfile(session.user.id);
   if(prof && prof.name){
     USER_PROFILE={name:prof.name,handle:prof.handle||'',color:prof.color||'#00B2A9',initials:prof.initials||prof.name.slice(0,2).toUpperCase(),types:prof.types||[]};
+    await loadCloudCollection(session.user.id);
     applyProfileToUI(); startApp();
   } else {
     // Nouveau compte : onboarding pour compléter le profil (email déjà vérifié par l'auth)
     obData.email=session.user.email||''; obData.emailVerified=true;
     showOnboarding();
   }
+}
+
+// Charge la collection cloud du compte → remplace ITEMS (source de vérité quand connecté)
+async function loadCloudCollection(uid){
+  try{
+    const {data,error}=await sb.from('collections').select('items').eq('user_id',uid).maybeSingle();
+    if(error){ console.warn('loadCloudCollection:',error.message); return; }
+    ITEMS.length=0;
+    if(data && Array.isArray(data.items)) data.items.forEach(it=>ITEMS.push(it));
+  }catch(e){ console.warn('loadCloudCollection:',e.message); }
+}
+
+// Sauvegarde la collection dans le cloud (débounce), uniquement si connecté par compte
+let _cloudSyncTimer=null;
+function scheduleCloudSync(){
+  if(!sb||!currentUserId) return;
+  clearTimeout(_cloudSyncTimer);
+  _cloudSyncTimer=setTimeout(pushCollectionToCloud,1500);
+}
+async function pushCollectionToCloud(){
+  if(!sb||!currentUserId) return;
+  try{
+    const {error}=await sb.from('collections').upsert({user_id:currentUserId,items:ITEMS,updated_at:new Date().toISOString()});
+    if(error) console.warn('pushCollectionToCloud:',error.message);
+  }catch(e){ console.warn('pushCollectionToCloud:',e.message); }
 }
 async function loadCloudProfile(uid){
   try{
