@@ -3397,6 +3397,22 @@ function saveEanMapping(ean,r){
     idx[ean]={title:r.title,author:r.author||'',year:r.year||'',type:r.type,emoji:r.emoji||TYPE_EMOJI[r.type]||'📦',coverUrl:r.coverUrl||null,ts:Date.now()};
     localStorage.setItem('dig_ean_index',JSON.stringify(idx));
   }catch(e){ console.log('saveEanMapping:',e.message); }
+  // Enrichit la base communautaire partagée (Supabase) — sans bloquer
+  pushEanToCloud(ean,r);
+}
+
+// Pousse un mapping code-barres → œuvre dans la base commune (réservé aux connectés via RLS)
+async function pushEanToCloud(ean,r){
+  if(!sb||!ean||!r||!r.title) return;
+  try{
+    const {data:{session}}=await sb.auth.getSession();
+    if(!session) return; // l'insertion dans ean_index nécessite un compte (RLS)
+    await sb.from('ean_index').upsert({
+      ean, title:r.title, author:r.author||null, year:r.year||null,
+      type:r.type||null, emoji:r.emoji||null, cover_url:r.coverUrl||null,
+      contributed_by: session.user.id
+    });
+  }catch(e){ console.warn('pushEanToCloud:',e.message); }
 }
 
 async function lookupISBN(directCode){
@@ -3442,6 +3458,18 @@ async function lookupISBN(directCode){
     if(isBarcode){
       const cached=getEanIndex()[q];
       if(cached){ result={...cached}; log.push('Index local: trouvé'); }
+    }
+
+    // 0b. Base communautaire partagée (Supabase) si pas en cache local
+    if(isBarcode && !result && sb){
+      try{
+        const {data}=await sb.from('ean_index').select('*').eq('ean',q).maybeSingle();
+        if(data && data.title){
+          result={title:data.title,author:data.author||'',year:data.year||'',type:data.type,emoji:data.emoji||TYPE_EMOJI[data.type]||'📦',coverUrl:data.cover_url||null};
+          saveEanMapping(q,result); // met en cache local
+          log.push('Base communautaire: trouvé');
+        }
+      }catch(e){ log.push('Base communautaire: '+e.message); }
     }
 
     // 1. Google Books (livre ou recherche texte)
