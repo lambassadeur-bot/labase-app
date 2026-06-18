@@ -4798,6 +4798,7 @@ function checkBetaPass(){
   if(!inp) return;
   if(inp.value===BETA_PASSWORD){
     sessionStorage.setItem('beta_ok','1');
+    localStorage.setItem('dig_local_ok','1'); // mémorise le mode local entre les sessions
     document.getElementById('betaGate').style.display='none';
     enterLocalMode();
   } else {
@@ -4917,6 +4918,8 @@ async function saveCloudProfile(){
 }
 async function logout(){
   try{ if(sb) await sb.auth.signOut(); }catch(e){}
+  sessionStorage.removeItem('beta_ok');
+  localStorage.removeItem('dig_local_ok');
   location.reload();
 }
 
@@ -4936,8 +4939,8 @@ async function initApp(){
       if(session){ await onAuthed(session); return; }
     }catch(e){ console.warn('getSession:',e.message); }
   }
-  // Déjà entré en mode local (mot de passe) avec un profil ?
-  if(sessionStorage.getItem('beta_ok')==='1' && USER_PROFILE){ applyProfileToUI(); startApp(); return; }
+  // Déjà entré en mode local (mot de passe) avec un profil → direct dans l'app, mémorisé entre sessions
+  if(localStorage.getItem('dig_local_ok')==='1' && USER_PROFILE){ localMode=true; applyProfileToUI(); startApp(); return; }
   // Sinon : écran d'accueil à 3 choix
   showLanding();
 }
