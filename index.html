@@ -1340,6 +1340,16 @@ html[data-mobile="1"] .map-domain-filters{padding:8px 10px!important;}
         <div class="form-row"><div class="flabel">Auteur / Créateur</div><input class="fi" id="manualAuthor" style="width:100%" placeholder="ex: Vince Gilligan" /></div>
         <div class="form-row"><div class="flabel">Année</div><input class="fi" id="manualYear" style="width:100px" placeholder="2008" /></div>
         <div class="form-row">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:var(--text2);">
+            <input type="checkbox" id="manualIsSeries" onchange="document.getElementById('manualSeriesCount').style.display=this.checked?'block':'none';" style="width:16px;height:16px;flex-shrink:0;" />
+            📚 C'est une série (plusieurs tomes / épisodes)
+          </label>
+          <div id="manualSeriesCount" style="display:none;margin-top:8px;">
+            <div class="flabel">Nombre de tomes / épisodes</div>
+            <input class="fi" id="manualTotal" type="number" min="1" max="500" value="10" style="width:100px" />
+          </div>
+        </div>
+        <div class="form-row">
           <div class="flabel">Statut</div>
           <div class="type-grid">
             <button class="tbtn active" onclick="selStatus(this)">Vu / Lu</button>
@@ -2105,7 +2115,7 @@ function renderGrid(){
   grid.innerHTML=items.map(item=>`
     <div class="card-wrap">
       ${item.wish?`<div class="wish-badge">♡ wish</div>`:''}
-      ${item.type==='series'?`<div class="series-badge">S${item.season||1} E${item.episode||1}</div>`:''}
+      ${item.series?`<div class="series-badge">📚 ${seriesReadCount(item)}/${item.total}</div>`:(item.type==='series'?`<div class="series-badge">S${item.season||1} E${item.episode||1}</div>`:'')}
       <div class="card ${item.wish?'wish-card':''} ${item.id===selectedId?'selected':''}" onclick="selectItem(${item.id})">
         <div class="card-cover cover-${item.type}" id="cover-wrap-${item.id}" style="position:relative;">
           <img id="cover-img-${item.id}" src="" alt="" style="display:none;width:100%;height:100%;object-fit:cover;border-radius:0;" />
@@ -2160,8 +2170,30 @@ function renderPanel(id){
         <div class="p-stars">${[1,2,3,4,5].map(s=>`<span class="star-btn" onclick="setStars(${item.id},${s})">${s<=item.stars?'★':'☆'}</span>`).join('')}</div>
       </div>
 
-      ${isSeries?`
-      <!-- Progression série -->
+      ${item.series?`
+      <!-- Dossier : tomes / épisodes avec note + commentaire par élément -->
+      <div style="padding:10px 14px;border-bottom:.5px solid var(--border);flex-shrink:0;max-height:300px;overflow-y:auto;">
+        <div class="p-label" style="display:flex;justify-content:space-between;align-items:center;">
+          <span>Tomes / épisodes</span>
+          <span style="font-size:11px;color:var(--teal);font-weight:600;">${seriesReadCount(item)} / ${item.total} lus</span>
+        </div>
+        <div class="ep-progress" style="margin:6px 0 12px;"><div class="ep-fill" style="width:${Math.round(seriesReadCount(item)/(item.total||1)*100)}%"></div></div>
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          ${(item.elements||[]).map((el,idx)=>`
+            <div style="border:.5px solid var(--border);border-radius:10px;padding:8px 10px;background:${el.read?'rgba(0,178,169,.08)':'var(--bg2)'};">
+              <div style="display:flex;align-items:center;gap:8px;">
+                <button onclick="toggleElementRead(${item.id},${idx})" title="Marquer lu" style="width:22px;height:22px;border-radius:6px;border:.5px solid var(--border);background:${el.read?'var(--teal)':'transparent'};color:#fff;font-size:12px;cursor:pointer;flex-shrink:0;line-height:1;">${el.read?'✓':''}</button>
+                <span style="flex:1;font-size:12px;font-weight:500;color:var(--text1);">${el.label}</span>
+                <span style="white-space:nowrap;font-size:13px;">${[1,2,3,4,5].map(s=>`<span onclick="setElementStars(${item.id},${idx},${s})" style="cursor:pointer;color:${s<=el.stars?'#EF9F27':'var(--text3)'};">${s<=el.stars?'★':'☆'}</span>`).join('')}</span>
+              </div>
+              <input value="${(el.note||'').replace(/"/g,'&quot;')}" oninput="setElementNote(${item.id},${idx},this.value)" placeholder="Un mot sur ce ${item.type==='series'?'épisode':'tome'}…" style="width:100%;box-sizing:border-box;margin-top:7px;padding:6px 9px;border-radius:7px;border:.5px solid var(--border);background:var(--bg);font-size:11.5px;color:var(--text1);outline:none;" />
+            </div>
+          `).join('')}
+        </div>
+      </div>`:''}
+
+      ${isSeries && !item.series?`
+      <!-- Progression série (épisode unique) -->
       <div style="padding:10px 14px;border-bottom:.5px solid var(--border);flex-shrink:0;">
         <div class="p-label">Progression série</div>
         <div class="ep-row">
@@ -3804,9 +3836,37 @@ function submitManualAdd(){
   const statusEl=document.querySelectorAll('.form-row .type-grid')[1]?.querySelector('.tbtn.active');
   const status=statusEl?statusMap[statusEl.textContent.trim()]||'todo':'todo';
   const prevKeys=getQuestKeys();
-  ITEMS.push({id:Date.now(),type,emoji,title,meta:`${author||'—'} · ${year||'—'}`,stars:0,note:'',status,wish:false});
+  const isSeries=document.getElementById('manualIsSeries')?.checked;
+  const base={id:Date.now(),type,emoji,title,meta:`${author||'—'} · ${year||'—'}`,stars:0,note:'',status,wish:false};
+  if(isSeries){
+    let total=parseInt(document.getElementById('manualTotal')?.value||'10',10);
+    if(isNaN(total)||total<1) total=1; if(total>500) total=500;
+    const unit=(type==='series')?'Épisode':'Tome';
+    base.series=true; base.total=total;
+    base.elements=Array.from({length:total},(_,i)=>({label:`${unit} ${i+1}`,read:false,stars:0,note:''}));
+  }
+  ITEMS.push(base);
   renderGrid();updateXP();updateNavCounts();closeModal();goHome();saveToStorage();
   setTimeout(()=>checkQuestCompletions(prevKeys),400);
+}
+
+// ── Séries / dossiers : gestion des éléments (tomes, épisodes) ──
+function seriesReadCount(item){ return (item.elements||[]).filter(e=>e.read).length; }
+function toggleElementRead(itemId,idx){
+  const it=ITEMS.find(i=>i.id===itemId); if(!it||!it.elements||!it.elements[idx]) return;
+  it.elements[idx].read=!it.elements[idx].read;
+  // statut auto : tout lu = done, au moins un = wip, sinon todo
+  const rc=seriesReadCount(it);
+  it.status = rc===0?'todo':(rc>=it.elements.length?'done':'wip');
+  saveToStorage(); renderPanel(itemId); renderGrid(); updateNavCounts();
+}
+function setElementStars(itemId,idx,s){
+  const it=ITEMS.find(i=>i.id===itemId); if(!it||!it.elements||!it.elements[idx]) return;
+  it.elements[idx].stars=s; saveToStorage(); renderPanel(itemId);
+}
+function setElementNote(itemId,idx,val){
+  const it=ITEMS.find(i=>i.id===itemId); if(!it||!it.elements||!it.elements[idx]) return;
+  it.elements[idx].note=val; saveToStorage();
 }
 
 // ── Fond d'écran personnalisé ──────────────────────────────────
