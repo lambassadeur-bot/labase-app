@@ -3855,11 +3855,17 @@ async function searchManualSuggestions(q){
           results.push({title:g.name,author:'',year:g.released?.slice(0,4)||'',type:'game',emoji:'🎮',coverUrl:g.background_image||null});
         });
       } else {
-        const r=await fetch(`https://openlibrary.org/search.json?q=${encodeURIComponent(q)}&limit=5&fields=title,author_name,first_publish_year,cover_i`);
+        // Livres / mangas : Google Books (meilleur tri + couvertures), dédoublonné par titre
+        const gq=type==='manga'?`${q} manga`:q;
+        const r=await fetch(`https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(gq)}&maxResults=8&orderBy=relevance${GOOGLE_BOOKS_KEY?`&key=${GOOGLE_BOOKS_KEY}`:''}`);
         const d=await r.json();
-        (d.docs||[]).forEach(doc=>{
-          const coverUrl=doc.cover_i?`https://covers.openlibrary.org/b/id/${doc.cover_i}-S.jpg`:null;
-          results.push({title:doc.title,author:(doc.author_name||[]).join(', '),year:doc.first_publish_year?String(doc.first_publish_year):'',type,emoji:EMOJI_MAP[type]||'📖',coverUrl});
+        const seen=new Set();
+        (d.items||[]).forEach(it=>{
+          const v=it.volumeInfo; if(!v||!v.title) return;
+          const key=v.title.toLowerCase().replace(/\s+/g,' ').trim();
+          if(seen.has(key)) return; seen.add(key);
+          if(results.length>=5) return;
+          results.push({title:v.title,author:(v.authors||[]).join(', '),year:v.publishedDate?v.publishedDate.slice(0,4):'',type,emoji:EMOJI_MAP[type]||'📖',coverUrl:v.imageLinks?.thumbnail?.replace('http:','https:')||null});
         });
       }
     }catch(e){}
