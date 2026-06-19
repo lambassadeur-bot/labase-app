@@ -367,7 +367,9 @@ html[data-mobile="1"] .panel-wrapper.mobile-open .panel-toggle,html[data-mobile=
 .logo-sub{font-size:10px;color:var(--text3);margin-top:1px;}
 .nav{padding:10px 8px;flex:1;overflow-y:auto;}
 .nav-label{font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;padding:0 8px;margin-bottom:4px;}
-.nav-item{display:flex;align-items:center;gap:8px;padding:7px 8px;border-radius:8px;cursor:pointer;font-size:12px;color:var(--text2);margin-bottom:1px;transition:background .15s;user-select:none;}
+.nav-item{display:flex;align-items:center;gap:8px;padding:7px 8px;border-radius:8px;cursor:pointer;font-size:12px;color:var(--text2);margin-bottom:1px;transition:background .15s;user-select:none;white-space:nowrap;overflow:hidden;}
+.nav-icon{flex-shrink:0;}
+.nav-count{flex-shrink:0;margin-left:auto;}
 .nav-item:hover{background:var(--bg2);}
 .nav-item.active{background:var(--nav-active-bg);color:var(--nav-active-c);font-weight:500;}
 .nav-icon{width:14px;text-align:center;font-size:12px;}
@@ -1708,7 +1710,7 @@ html[data-mobile="1"] .panel-wrapper.mobile-open .panel-toggle,html[data-mobile=
             <div class="menu-section">
               <div class="menu-item" onclick="closeAll();showProfile('me')"><div class="mi-icon">◉</div><div class="mi-label">Mon profil public</div><div class="mi-arrow">›</div></div>
               <div class="menu-item" onclick="closeAll();openWallpaperSettings()"><div class="mi-icon">🖼</div><div class="mi-label">Fond d'écran</div><div class="mi-arrow">›</div></div>
-              <div class="menu-item"><div class="mi-icon">⚙</div><div class="mi-label">Paramètres</div><div class="mi-arrow">›</div></div>
+              <div class="menu-item" onclick="toggleTheme(event)"><div class="mi-icon">🌙</div><div class="mi-label" id="themeMenuLabel">Mode nuit</div><div class="mi-arrow">›</div></div>
               <div class="menu-item"><div class="mi-icon">◈</div><div class="mi-label">Notifications</div><div class="mi-arrow">›</div></div>
               <div class="menu-item"><div class="mi-icon">?</div><div class="mi-label">Aide & support</div><div class="mi-arrow">›</div></div>
               <div class="menu-item" onclick="closeAll();resetAllData()" style="color:var(--pink);border-top:.5px solid var(--border);margin-top:4px;padding-top:10px;"><div class="mi-icon">↻</div><div class="mi-label">Réinitialiser l'app</div><div class="mi-arrow">›</div></div>
@@ -1723,10 +1725,6 @@ html[data-mobile="1"] .panel-wrapper.mobile-open .panel-toggle,html[data-mobile=
           <div class="avatar">JD</div>
           <div class="av-info"><div class="av-name" id="av-name-display">—</div><div class="av-handle" id="av-handle-display"></div></div>
           <span class="chevron">▲</span>
-          <button class="theme-btn" onclick="toggleTheme(event)" title="Mode jour/nuit">
-            <svg id="iMoon" viewBox="0 0 24 24" fill="none" style="width:13px;height:13px;display:block"><path d="M21 12.79A9 9 0 1111.21 3a7 7 0 109.79 9.79z" fill="currentColor"/></svg>
-            <svg id="iSun" viewBox="0 0 24 24" fill="none" style="width:13px;height:13px;display:none"><circle cx="12" cy="12" r="4" fill="currentColor"/><line x1="12" y1="2" x2="12" y2="5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="12" y1="19" x2="12" y2="22" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="2" y1="12" x2="5" y2="12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="19" y1="12" x2="22" y2="12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="4.22" y1="4.22" x2="6.34" y2="6.34" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="17.66" y1="17.66" x2="19.78" y2="19.78" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="4.22" y1="19.78" x2="6.34" y2="17.66" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="17.66" y1="6.34" x2="19.78" y2="4.22" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-          </button>
         </div>
       </div>
     </div>
@@ -3286,11 +3284,11 @@ function addSugToWish(title,type,emoji,btn){
 }
 
 function toggleTheme(e){
-  e.stopPropagation();
+  if(e&&e.stopPropagation) e.stopPropagation();
   dark=!dark;
   document.getElementById('app').setAttribute('data-theme',dark?'dark':'');
-  document.getElementById('iMoon').style.display=dark?'none':'block';
-  document.getElementById('iSun').style.display=dark?'block':'none';
+  const lbl=document.getElementById('themeMenuLabel');
+  if(lbl) lbl.textContent=dark?'Mode jour':'Mode nuit';
   // Refresh map tiles if open
   if(mapInstance) renderMap();
 }
@@ -3885,6 +3883,9 @@ async function searchManualSuggestions(q){
         (d.results||[]).forEach(g=>{
           results.push({title:g.name,author:'',year:g.released?.slice(0,4)||'',type:'game',emoji:'🎮',coverUrl:g.background_image||null});
         });
+      } else if(type==='collect'){
+        list.innerHTML=`<div style="font-size:10.5px;color:var(--text3);padding:8px;line-height:1.5;background:var(--bg2);border-radius:8px;border:.5px solid var(--border);">🪙 Pas de base auto pour les objets de collection — saisis le titre à la main, ça sera mémorisé.</div>`;
+        return;
       } else {
         // Livres / mangas : Google Books (meilleur tri + couvertures), dédoublonné par titre
         const gq=type==='manga'?`${q} manga`:q;
@@ -6037,10 +6038,7 @@ function showProfile(friendId){
 </script>
 <!-- Mobile bottom navigation -->
 <nav id="mobileNav">
-  <button class="mob-nav-btn active" id="mob-home" onclick="goHome();setMobNav('mob-home')">
-    <span>⌂</span><span>Accueil</span>
-  </button>
-  <button class="mob-nav-btn" id="mob-collection" onclick="filterBy('all',document.querySelector('[onclick*=filterBy]'));setMobNav('mob-collection')">
+  <button class="mob-nav-btn active" id="mob-collection" onclick="filterBy('all',document.querySelector('[onclick*=filterBy]'));setMobNav('mob-collection')">
     <span>◈</span><span>Collection</span>
   </button>
   <button class="mob-nav-btn" id="mob-search" onclick="showSearchView('');setMobNav('mob-search')">
